@@ -1,0 +1,11 @@
+{
+  "a": 1.0,
+  "b": 0.5,
+  "beta": 0.5,
+  "target_variance": 0.3333333333333333,
+  "terminal_variance": 0.3449017060361878,
+  "variance_abs_error": 0.01156837270285449,
+  "energy_increase_steps": 0,
+  "mass_error_max": 4.440892098500626e-16,
+  "min_density": 2.8327596071998373e-50
+}

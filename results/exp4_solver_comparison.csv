@@ -1,0 +1,4 @@
+method,stable,energy_increase_steps,mass_error,min_density_or_negative_mass,equilibrium_variance
+explicit,False,25,160547.80000000037,-2.1598169792332387e+22,nan
+implicit,True,0,4.440892098500626e-16,6.4256599113608464e-27,0.3808399364300731
+jko,True,0,0.0,0.0,0.34442344559567667
