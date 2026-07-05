@@ -70,10 +70,11 @@ def _shock_span(ax, window):
     ax.axvspan(window[0], window[1], alpha=0.18, color=SHOCK_COLOR, zorder=0)
 
 
-def _legend_below(ax, ncol: int = 2, fontsize: float = 6.5):
+def _legend_below(ax, ncol: int = 2, fontsize: float = 6.5, handles=None):
     ax.legend(
+        handles=handles,
         frameon=False, loc="upper center",
-        bbox_to_anchor=(0.5, -0.30), ncol=ncol, fontsize=fontsize,
+        bbox_to_anchor=(0.5, -0.32), ncol=ncol, fontsize=fontsize,
     )
 
 
@@ -104,7 +105,7 @@ def _snapshot_colors(n: int):
 def figure_exp1(data, path: Path) -> None:
     x = data["x"]
     model = data["model"]
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.0))
 
     ax = axes[0]
     snap_items = sorted(data["snaps"].items())
@@ -128,7 +129,7 @@ def figure_exp1(data, path: Path) -> None:
     ax.set_ylabel(r"free energy $\mathcal{F}(m_t)$")
     ax.set_title("monotone energy dissipation", fontsize=9, pad=6)
     _panel_label(ax, "(b)")
-    _legend_upper_left(ax)
+    _legend_below(ax, ncol=1)
 
     ax = axes[2]
     ax.plot(data["t_arr"], data["var_arr"], label="numerical", color="C0", lw=1.5)
@@ -139,9 +140,9 @@ def figure_exp1(data, path: Path) -> None:
     ax.set_ylabel(r"variance $\Sigma_t$")
     ax.set_title("variance relaxes to closed form", fontsize=9, pad=6)
     _panel_label(ax, "(c)")
-    _legend_upper_left(ax)
+    _legend_below(ax, ncol=1)
 
-    _save_fig(fig, path, bottom_pad=0.06)
+    _save_fig(fig, path, bottom_pad=0.10)
 
 
 def figure_exp2(data, path: Path) -> None:
@@ -150,7 +151,7 @@ def figure_exp2(data, path: Path) -> None:
     c = data["shock_center"]
     x = data["x"]
     snap_labels = data.get("snap_labels", {})
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.0))
 
     # (a) density first — same logic as exp1 (a)
     ax = axes[0]
@@ -177,13 +178,13 @@ def figure_exp2(data, path: Path) -> None:
     ax.set_ylabel(r"mean inventory $\mu_t$")
     ax.set_title("mean driven toward tilt, then relaxes at rate $a$", fontsize=9, pad=6)
     _panel_label(ax, "(b)")
-    ax.legend(handles=[
+    _legend_below(ax, ncol=1, handles=[
         plt.Line2D([0], [0], color="C0", lw=1.5, label=r"mean $\mu_t$"),
         Patch(facecolor=SHOCK_COLOR, alpha=0.18,
               label=rf"shock $t\in[{window[0]:g},{window[1]:g}]$"),
         plt.Line2D([0], [0], color=SHOCK_COLOR, ls="--", lw=1.2,
                    label=rf"tilt target $c={c:g}$"),
-    ], frameon=False, fontsize=7, loc="upper left")
+    ])
 
     # (c) W2 distance
     ax = axes[2]
@@ -194,13 +195,13 @@ def figure_exp2(data, path: Path) -> None:
     ax.set_ylabel(r"$W_2(m_t, m_\infty)$")
     ax.set_title("departure from and return to equilibrium", fontsize=9, pad=6)
     _panel_label(ax, "(c)")
-    ax.legend(handles=[
+    _legend_below(ax, ncol=1, handles=[
         plt.Line2D([0], [0], color="C2", lw=1.5, label=r"$W_2(m_t, m_\infty)$"),
         Patch(facecolor=SHOCK_COLOR, alpha=0.18,
               label=rf"shock $t\in[{window[0]:g},{window[1]:g}]$"),
-    ], frameon=False, fontsize=7, loc="upper left")
+    ])
 
-    _save_fig(fig, path, bottom_pad=0.06)
+    _save_fig(fig, path, bottom_pad=0.10)
 
 
 def figure_exp3(data, path: Path) -> None:
