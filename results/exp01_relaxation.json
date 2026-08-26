@@ -1,0 +1,41 @@
+{
+  "claim": "theory_implementation_sanity",
+  "model": {
+    "a": 1.0,
+    "b": 0.5,
+    "beta": 0.5,
+    "sigma2_inf": 0.3333333333333333
+  },
+  "dt": 0.002,
+  "t_final": 4.0,
+  "seed": null,
+  "target_variance": 0.3333333333333333,
+  "terminal_variance": 0.3449017060361878,
+  "variance_abs_error": 0.01156837270285449,
+  "variance_law_rmse": 0.016622203009557784,
+  "mean_bimodal_rmse": 9.82396199203116e-16,
+  "mean_shifted_rmse": 0.001921786691726642,
+  "energy_increase_steps": 0,
+  "mass_error_max": 4.440892098500626e-16,
+  "min_density": 2.8327596071998373e-50,
+  "terminal_w2": 0.009810278066746307,
+  "initial_w2": 1.5450113473665408,
+  "w2_snapshot_times": [
+    0.0,
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "w2_snapshots": [
+    1.5450113473665408,
+    0.5346577196784549,
+    0.15674206046603797,
+    0.018245524413027195,
+    0.009810278066746307
+  ],
+  "supports_claim": true,
+  "notes": "Paper bimodal is mean-zero so the mean law is nearly vacuous there; shifted bimodal companion tests mu_t = mu0 e^{-a t}.",
+  "runtime_sec": 7.313050031661987,
+  "command": "python experiments/01_relaxation.py"
+}

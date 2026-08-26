@@ -4,11 +4,15 @@
 
 This project studies a stylized mean-field market-making model where the object of interest is not an asset price, return, or alpha signal, but the **distribution of dealer inventories** across a population of market makers.
 
-The central question is:
+The central question is whether a *stylized* inventory distribution can be
+approximated as a Wasserstein gradient flow of an interpretable free energy,
+and whether JKO is a stable way to compute that flow. That is three separate
+claims: the quadratic model is internally correct; JKO is structure-preserving;
+whether real market inventories follow \(F\) is open.
 
-> Can the population distribution of market-maker inventories be modeled as a Wasserstein gradient flow of a free-energy functional, and can a JKO scheme provide a stable and interpretable numerical method for computing the resulting equilibria?
-
-The model should be treated as a controlled mathematical/numerical experiment, not as a direct empirical claim about real market prices. The energy lives on the distribution of agent states, especially dealer inventories.
+The numerics are a controlled mathematical experiment, not empirical evidence
+about dealer inventories in markets. The energy lives on the distribution of
+agent states.
 
 ---
 
@@ -25,7 +29,7 @@ The whole dealer population forms a probability distribution `rho(x)` over inven
 The paper asks whether this inventory distribution behaves like a probability blob rolling downhill in Wasserstein space. The downhill direction is determined by a free-energy functional with three forces:
 
 1. **Inventory/risk potential**: dealers dislike large absolute inventory and are pulled toward zero.
-2. **Interaction / crowding-compression term**: the population interaction changes the spread of inventories.
+2. **Interaction / dispersion penalty**: with $W=\frac{b}{2}(x-y)^2$ and $b>0$, the population interaction compresses the spread of inventories (synchronization), it does not repel similar dealers.
 3. **Entropy / dispersion**: diffusion prevents collapse and keeps the distribution smooth.
 
 ---
@@ -91,7 +95,7 @@ They do **not** determine the initial distribution. They determine the energy la
 | Parameter | Meaning | Effect |
 |---|---|---|
 | `a` | inventory-risk strength | Larger `a` pulls mean inventory back to zero faster. |
-| `b` | quadratic interaction / compression strength | Larger `b` makes the equilibrium distribution tighter and speeds variance relaxation. |
+| `b` | interaction / cross-sectional dispersion penalty | Larger `b` compresses equilibrium variance and speeds variance relaxation. Not a penalty on similar inventories. |
 | `beta` | entropy / dispersion strength | Larger `beta` makes the equilibrium distribution wider. |
 | `dt` or `tau` | numerical step size | Controls how large each solver/JKO step is; not part of the energy itself. |
 
@@ -177,110 +181,13 @@ JKO is the distributional analogue of implicit gradient descent. The parameter `
 
 ---
 
-## Existing scripts
+## Current implementation
 
-The current project contains three useful starting scripts.
+The library lives in `src/wfmm/`. Experiments are `experiments/01_relaxation.py` through `experiments/08_directional_alignment.py`. Root scripts `mfmm.py`, `make_figures.py`, `gradient_flow_alignment.py`, and `empirical_validation.py` are shims. Reproduce with `python experiments/run_all.py`.
 
-### `mfmm.py`
+Claims are kept separate: (1) theory/implementation sanity, (2) JKO structure preservation, (3) empirical relevance — synthetic diagnostics only, no market inventories. Numbers and verdicts: [EXPERIMENTS.md](../EXPERIMENTS.md). Overleaf manuscript: [paper/rewrite.tex](../paper/rewrite.tex).
 
-This is the numerical core. It contains:
-
-- the model class `Model(a,b,beta)`;
-- closed-form equilibrium `sigma2_inf = beta / (a+b)`;
-- explicit and implicit finite-difference Fokker--Planck solvers;
-- a 1D quantile-coordinate JKO solver;
-- four experiment functions:
-  - `exp1_relaxation`;
-  - `exp2_shock`;
-  - `exp3_crowding_sweep`;
-  - `exp4_solver_comparison`.
-
-This script should be the primary starting point for implementing the paper experiments.
-
-### `gradient_flow_alignment.py`
-
-This script implements a sample-based empirical diagnostic:
-
-- Given consecutive empirical distributions `m_k` and `m_{k+1}`, estimate the observed OT velocity `v_obs`.
-- Compute the predicted gradient-flow velocity `v_pred = -grad(delta F / delta m)`.
-- Report:
-  - `cos_theta`;
-  - `grad_fraction = cos_theta**2`;
-  - `residual_fraction = 1 - cos_theta**2`;
-  - energy change `dF`.
-
-This belongs to an empirical-validation extension, not the main controlled Section 4 numerical experiments.
-
-### `empirical_validation.py`
-
-This script wraps the alignment diagnostic into:
-
-- a positive control using true JKO iterates;
-- a negative / anti-gradient translation control;
-- a data or regime-shift sequence;
-- Lyapunov decrease and Gibbs-form checks.
-
-This should be treated as a Section 5 empirical-validation scaffold.
-
----
-
-## Important alignment fixes
-
-Please fix the following misalignments before treating the project as final.
-
-### 1. The writeup says “three experiments,” but the code and paper contain four numerical experiments
-
-The clean framing should be:
-
-1. **Inventory relaxation**: model-behavior experiment.
-2. **Liquidity shock**: model-behavior experiment.
-3. **Crowding sweep**: comparative-statics experiment.
-4. **Solver comparison**: numerical-method ablation.
-
-Recommended wording:
-
-> We run three main model experiments and one solver-comparison ablation.
-
-### 2. Missing figure generation
-
-The Overleaf project references figures such as:
-
-```text
-figs/exp1_relaxation.png
-figs/exp2_shock.png
-figs/exp3_crowding.png
-figs/exp4_solvers.png
-```
-
-but the current scripts mainly compute metrics and print summaries. Implement reproducible figure generation and save outputs under `figs/`.
-
-### 3. Crowding wording must match the formula
-
-The current formula is
-
-```math
-W(x,y)=\frac{b}{2}(x-y)^2, \qquad b>0.
-```
-
-This penalizes dispersion across dealer inventories and compresses the equilibrium variance. Do **not** describe it as penalizing dealers being too similar. Better wording:
-
-> The quadratic interaction penalizes dispersion across the population and produces a common-inventory compression effect.
-
-### 4. Entropy convention in `gradient_flow_alignment.py`
-
-The top docstring currently describes an entropy coefficient like `beta^{-1}` in places. The paper and code use
-
-```math
-+\beta\int \rho\log\rho.
-```
-
-Fix docstrings/comments to consistently use the paper convention: entropy weight is `beta`, not `1 / beta`.
-
-### 5. Negative-control wording in `empirical_validation.py`
-
-The top docstring says rigid translation should give `cos ~ 0`, but the implemented 1D translation control is anti-gradient and should give approximately `cos ~ -1` with energy increasing. The later explanation is closer to correct. Fix the docstring to say:
-
-> In 1D, the translation control is anti-gradient rather than orthogonal: expect `cos ~ -1` and poor Lyapunov decrease.
+Figure names are `figs/exp01_*.png` … `figs/exp08_*.png` (not the older `exp1_relaxation` / `exp3_crowding` paths).
 
 ---
 
@@ -341,7 +248,7 @@ Energy should decrease monotonically.
 Save a figure to:
 
 ```text
-figs/exp1_relaxation.png
+figs/exp01_relaxation.png
 ```
 
 Recommended panels:
@@ -353,7 +260,7 @@ Recommended panels:
 Also save metrics to:
 
 ```text
-results/exp1_relaxation.json
+results/exp01_relaxation.json
 ```
 
 Required metrics:
@@ -439,7 +346,7 @@ mean inventory decays back toward 0 at rate a = 1
 Save a figure to:
 
 ```text
-figs/exp2_shock.png
+figs/exp02_shock.png
 ```
 
 Recommended panels:
@@ -451,7 +358,7 @@ Recommended panels:
 Save metrics to:
 
 ```text
-results/exp2_shock.json
+results/exp02_shock.json
 ```
 
 Required metrics:
@@ -477,11 +384,11 @@ Required metrics:
 
 ---
 
-## Experiment 3: Crowding sweep
+## Experiment 3: Interaction-strength sweep
 
 ### Goal
 
-Verify the comparative static that increasing `b` compresses the equilibrium distribution and that the numerical variance matches
+Verify the comparative static that increasing `b` compresses the equilibrium distribution and that the numerical variance matches $\beta/(a+b)$. Larger `b` is a dispersion penalty, not a penalty on similar inventories.
 
 ```math
 \frac{\beta}{a+b}.
@@ -525,7 +432,7 @@ b = 3.0  -> target variance = 0.125
 Save a figure to:
 
 ```text
-figs/exp3_crowding.png
+figs/exp03_parameter_sweep.png
 ```
 
 Recommended panels:
@@ -536,7 +443,7 @@ Recommended panels:
 Save table to:
 
 ```text
-results/exp3_crowding_sweep.csv
+results/exp03_parameter_sweep.csv
 ```
 
 with columns:
@@ -548,7 +455,7 @@ b,numerical_variance,theoretical_variance,absolute_error,relative_error
 Save metrics to:
 
 ```text
-results/exp3_crowding_sweep.json
+results/exp03_parameter_sweep.json
 ```
 
 Required metrics:
@@ -609,14 +516,16 @@ Explicit FD should fail at the large step: negative density, mass issues, explod
 
 Implicit FD should remain stable but may suffer numerical diffusion.
 
-JKO should remain stable, conserve mass by construction, preserve positivity by construction, and monotonically dissipate energy.
+JKO should remain stable, conserve mass by construction, preserve positivity by construction, and monotonically dissipate energy on the *autonomous* problem.
+
+Do **not** claim JKO is more accurate at equal resolution unless runtime or degrees of freedom are matched.
 
 ### Required outputs
 
 Save a figure to:
 
 ```text
-figs/exp4_solvers.png
+figs/exp04_solver_benchmark.png
 ```
 
 Recommended panels:
@@ -629,7 +538,7 @@ Recommended panels:
 Save table to:
 
 ```text
-results/exp4_solver_comparison.csv
+results/exp04_solver_benchmark.csv
 ```
 
 with columns:
@@ -641,192 +550,44 @@ method,stable,energy_increase_steps,mass_error,min_density_or_negative_mass,equi
 Save metrics to:
 
 ```text
-results/exp4_solver_comparison.json
+results/exp04_solver_benchmark.json
 ```
 
 ### Pass criteria
 
 - Explicit FD fails or violates positivity at the large step.
 - Implicit FD remains stable.
-- JKO remains stable, has zero/negligible energy-increase steps, preserves mass, and reaches variance near `1/3`.
+- JKO remains stable, has zero/negligible energy-increase steps, and preserves mass/positivity.
+- Do not claim equal-resolution accuracy superiority.
 
 ---
 
-# Optional Section 5: empirical validation diagnostic
+# Section 5: synthetic diagnostics (not market evidence)
 
-This is not necessary for the controlled toy experiments, but the existing scripts already set up a useful extension.
+These tests are a template for a future empirical study. They are not evidence that dealer inventories follow \(F\).
 
-## Goal
+Run in this order on any candidate market-state distribution:
 
-Given a sequence of empirical distributions, test whether their observed movement aligns with the predicted Wasserstein-gradient direction.
+1. **Moment restrictions** (train, then test out of sample): \(\mu_{t+\Delta t}\approx e^{-a\Delta t}\mu_t\) and the variance law. This is the hardest test for the simple quadratic model to hide from. Cosine cannot identify \((a,b,\beta)\mapsto c(a,b,\beta)\).
+2. **Distribution forecasting:** \(W_2(\widehat D_{t+\Delta t}, D_{t+\Delta t})\) against persistence and \(b=0\) / OU baselines.
+3. **Local directional alignment:** \(\cos\theta\) and unexplained displacement \(1-\cos^2\theta\) of the Brenier *marginal* map. Not circulation. \(\Delta t\) is testable: agreement is local.
 
-## Diagnostic
+Shock experiments must not require unadjusted \(F\) to decrease during a time-dependent tilt.
 
-For consecutive distributions `m_k -> m_{k+1}`:
-
-1. Estimate the OT map `T_k`.
-2. Compute observed velocity:
-
-```math
-v_{obs}(x)=\frac{T_k(x)-x}{\Delta t}.
-```
-
-3. Compute predicted velocity:
-
-```math
-v_{pred}(x)=-\nabla\frac{\delta F}{\delta m}(x).
-```
-
-4. Report the alignment cosine:
-
-```math
-\cos\theta
-=
-\frac{\langle v_{obs},v_{pred}\rangle_{L^2(m_k)}}
-{\|v_{obs}\|_{L^2(m_k)}\|v_{pred}\|_{L^2(m_k)}}.
-```
-
-Interpretation:
-
-| Value | Meaning |
-|---|---|
-| `cos_theta ~ 1` | observed movement is along the gradient-flow direction |
-| `cos_theta ~ 0` | observed movement is orthogonal / non-gradient |
-| `cos_theta ~ -1` | observed movement is anti-gradient / uphill |
-| `grad_fraction = cos_theta^2` | share of motion explained by the energy direction |
-| `residual_fraction = 1 - cos_theta^2` | non-gradient residual |
-
-## Required fixes before use
-
-- Fix entropy convention in `gradient_flow_alignment.py` docstring.
-- Fix negative-control wording in `empirical_validation.py`.
-- Make sure beta matches the paper convention.
-- If using real data, clearly state that this is only an alignment diagnostic, not proof that markets are pure gradient flows.
+See [EXPERIMENTS.md](../EXPERIMENTS.md) and [paper/rewrite.tex](../paper/rewrite.tex) for the numbers and the Overleaf manuscript.
 
 ---
 
-# Recommended repository structure
+# Repository structure
 
 ```text
-.
-├── README.md
-├── mfmm.py
-├── gradient_flow_alignment.py
-├── empirical_validation.py
-├── figs/
-│   ├── exp1_relaxation.png
-│   ├── exp2_shock.png
-│   ├── exp3_crowding.png
-│   └── exp4_solvers.png
-├── results/
-│   ├── exp1_relaxation.json
-│   ├── exp2_shock.json
-│   ├── exp3_crowding_sweep.csv
-│   ├── exp3_crowding_sweep.json
-│   ├── exp4_solver_comparison.csv
-│   └── exp4_solver_comparison.json
-└── tests/
-    ├── test_mfmm_experiments.py
-    └── test_alignment_diagnostics.py
+src/wfmm/                 model, solvers, OT, estimation, diagnostics
+experiments/01_…08_….py
+paper/rewrite.tex         Overleaf manuscript (full article)
+figs/exp01_….png … exp08_….png
+results/exp01_….json …
+tests/test_core.py
+EXPERIMENTS.md
 ```
 
----
-
-# Implementation checklist for coding agent
-
-## Must implement
-
-- [ ] Add deterministic figure-generation functions to `mfmm.py` or a new `make_figures.py`.
-- [ ] Create `figs/` automatically if missing.
-- [ ] Create `results/` automatically if missing.
-- [ ] Generate `exp1_relaxation.png`.
-- [ ] Generate `exp2_shock.png`.
-- [ ] Generate `exp3_crowding.png`.
-- [ ] Generate `exp4_solvers.png`.
-- [ ] Save JSON/CSV result artifacts for all experiments.
-- [ ] Add a CLI command such as:
-
-```bash
-python make_figures.py --all
-```
-
-or
-
-```bash
-python mfmm.py --make-figures
-```
-
-## Should implement
-
-- [ ] Cache or optimize finite-difference operator construction where possible.
-- [ ] Avoid long runtimes from rebuilding dense matrices unnecessarily.
-- [ ] Add tests for closed-form laws:
-  - `sigma2_inf == beta / (a+b)`;
-  - mean law `mu_t = mu0 exp(-a t)`;
-  - variance law convergence;
-  - JKO energy monotonicity.
-- [ ] Add tolerance-based validation tests for each experiment.
-
-## Must fix
-
-- [ ] Correct crowding language in comments/docstrings.
-- [ ] Correct entropy convention in `gradient_flow_alignment.py`.
-- [ ] Correct negative-control wording in `empirical_validation.py`.
-- [ ] Align README/writeup language: “three model experiments + one solver ablation.”
-
----
-
-# Suggested coding-agent prompt
-
-Use the following prompt to drive implementation:
-
-```text
-You are working on a project called "Wasserstein Gradient Flows for Mean-Field Market Making." The project models the distribution of dealer inventories as a Wasserstein gradient flow of a free-energy functional.
-
-The core model is one-dimensional with
-V(x) = (a/2)x^2,
-W(x,y) = (b/2)(x-y)^2,
-and entropy beta * int rho log rho.
-The free energy is
-F(rho) = (a/2) int x^2 rho dx + (b/2) Var(rho) + beta int rho log rho dx.
-The theoretical equilibrium is N(0, beta/(a+b)).
-
-Use the existing scripts mfmm.py, gradient_flow_alignment.py, and empirical_validation.py as starting points.
-
-Primary task: implement reproducible experiment generation for the paper. There should be three main model experiments and one solver-comparison ablation:
-
-1. Experiment 1: inventory relaxation from a bimodal initial distribution 0.5*N(-2,0.2^2)+0.5*N(2,0.2^2). Show density snapshots, energy decrease, and variance convergence to beta/(a+b)=1/3 for a=1,b=0.5,beta=0.5.
-
-2. Experiment 2: liquidity shock. Start from N(0,1/3). Apply tilted potential V_t(x)=a/2*(x-c_t)^2 with c_t=2 on t in [2,4] and 0 otherwise. Show mean inventory moving toward 2 during the shock, reaching approximately 2*(1-exp(-2))=1.73, then decaying back to 0.
-
-3. Experiment 3: crowding sweep. Sweep b in [0,3], compute numerical equilibrium variance, and compare to beta/(a+b). Show variance decreases as b increases and plot representative equilibrium densities.
-
-4. Experiment 4: solver comparison. Compare explicit FD, implicit FD, and 1D quantile JKO at a deliberately large step above the explicit CFL limit. Explicit should fail; implicit and JKO should remain stable; JKO should preserve mass/positivity and dissipate energy.
-
-Add deterministic figure generation and save:
-figs/exp1_relaxation.png
-figs/exp2_shock.png
-figs/exp3_crowding.png
-figs/exp4_solvers.png
-
-Also save results JSON/CSV files under results/.
-
-Fix alignment issues:
-- Use "three model experiments + one solver ablation" language.
-- Correct crowding wording: W=b/2*(x-y)^2 with b>0 penalizes dispersion and compresses variance; do not say it penalizes similar inventories.
-- In gradient_flow_alignment.py, fix docstrings so entropy coefficient is beta, not beta^{-1}.
-- In empirical_validation.py, fix the negative-control docstring: 1D translation is anti-gradient, so expect cos approximately -1 and poor Lyapunov decrease, not cos approximately 0.
-
-Add tests or validation checks that confirm:
-- target variance is beta/(a+b),
-- Exp 1 terminal variance is close to target and energy decreases,
-- Exp 2 shock-end mean is close to 1.73,
-- Exp 3 variance curve matches beta/(a+b),
-- Exp 4 JKO has monotone energy, mass preservation, and positivity.
-```
-
----
-
-# Recommended README summary paragraph
-
-This repository implements a stylized mean-field market-making model in which the distribution of dealer inventories evolves as a Wasserstein gradient flow of a free-energy functional. The energy combines inventory risk, quadratic population interaction, and entropy. In the quadratic case, the model has a closed-form Gaussian equilibrium `N(0, beta/(a+b))`, which provides ground truth for numerical experiments. The project tests inventory relaxation, liquidity-shock response, crowding comparative statics, and JKO solver stability against finite-difference baselines. The empirical-validation scripts provide an optional diagnostic for measuring whether observed distributional shifts align with the predicted Wasserstein-gradient direction.
+Reproduce with `python experiments/run_all.py` and `python -m pytest tests/ -v`.

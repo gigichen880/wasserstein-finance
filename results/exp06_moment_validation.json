@@ -1,0 +1,60 @@
+{
+  "claim": "model_validation_synthetic",
+  "seed": 0,
+  "n": 1200,
+  "n_steps": 24,
+  "dt": 0.05,
+  "train_end_index": 13,
+  "true": {
+    "a": 1.0,
+    "b": 0.5,
+    "beta": 0.5,
+    "sigma2_inf": 0.3333333333333333
+  },
+  "fitted_a": 0.9842927640540511,
+  "fitted_a_plus_b": 1.4553748374551334,
+  "fitted_b": 0.4710820734010823,
+  "fitted_sigma2_inf": 0.35167684725100073,
+  "n_mean_pairs": 12,
+  "mean_fit_r2": 0.9965948559560175,
+  "var_fit_r2": 0.9994302929271138,
+  "train": {
+    "mean_mae": 0.004574871958674208,
+    "mean_rmse": 0.005977035637602963,
+    "mean_r2": 0.9965948559560175,
+    "var_mae": 0.014718198920790496,
+    "var_rmse": 0.018857927614585438,
+    "var_r2": 0.9994302929271138
+  },
+  "test": {
+    "mean_mae": 0.003969470047551442,
+    "mean_rmse": 0.004679120017105793,
+    "mean_r2": 0.9930633919573568,
+    "var_mae": 0.007605439165878271,
+    "var_rmse": 0.008948661035371949,
+    "var_r2": 0.9960702395158989
+  },
+  "oracle_test": {
+    "mean_mae": 0.003923544389679863,
+    "mean_rmse": 0.0046131117575203195,
+    "mean_r2": 0.9932577207271652,
+    "var_mae": 0.006597021419464226,
+    "var_rmse": 0.00795108776620384,
+    "var_r2": 0.9968975623637275
+  },
+  "test_mean_mae": 0.004011753087270782,
+  "test_mean_mae_ci": [
+    0.0028893485668991248,
+    0.005175630334190808
+  ],
+  "test_var_mae": 0.007417952701129007,
+  "test_var_mae_ci": [
+    0.005105359709482658,
+    0.009661887492389254
+  ],
+  "scale_not_identified_by_cosine": true,
+  "supports_claim": true,
+  "notes": "Parameters fitted only on the training segment. Cosine alignment is not used here; (a,b,beta) ~ c(a,b,beta) is identified via moment timescales.",
+  "runtime_sec": 0.44371914863586426,
+  "command": "python experiments/06_moment_validation.py"
+}

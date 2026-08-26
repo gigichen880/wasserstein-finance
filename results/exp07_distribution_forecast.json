@@ -1,0 +1,86 @@
+{
+  "claim": "model_validation_synthetic",
+  "seed": 0,
+  "n": 700,
+  "n_steps": 16,
+  "dt": 0.05,
+  "train_end_index": 9,
+  "fitted_a": 0.9418736956039623,
+  "fitted_a_plus_b": 1.3232090318954661,
+  "fitted_sigma2_inf": 0.09428082531845788,
+  "mean_w2_persistence": 0.06418008996321628,
+  "mean_w2_gaussian": 0.04515137909318724,
+  "mean_w2_no_interaction": 0.04827427186847793,
+  "mean_w2_jko": 0.036094071302436845,
+  "rows": [
+    {
+      "w2_persistence": 0.08218705556317144,
+      "w2_gaussian_moments": 0.05193027784928475,
+      "w2_no_interaction": 0.059315622245407464,
+      "w2_jko": 0.04081020046283274,
+      "window": 8,
+      "t": 0.45
+    },
+    {
+      "w2_persistence": 0.07328357991404523,
+      "w2_gaussian_moments": 0.04938437471829085,
+      "w2_no_interaction": 0.05453458939417315,
+      "w2_jko": 0.040846009770020425,
+      "window": 9,
+      "t": 0.5
+    },
+    {
+      "w2_persistence": 0.07879935227402496,
+      "w2_gaussian_moments": 0.05017609893356035,
+      "w2_no_interaction": 0.057045856272509625,
+      "w2_jko": 0.03591299486996121,
+      "window": 10,
+      "t": 0.55
+    },
+    {
+      "w2_persistence": 0.05762303960631089,
+      "w2_gaussian_moments": 0.04017980477628423,
+      "w2_no_interaction": 0.04418507263208352,
+      "w2_jko": 0.032553161795477945,
+      "window": 11,
+      "t": 0.6000000000000001
+    },
+    {
+      "w2_persistence": 0.05441972676793589,
+      "w2_gaussian_moments": 0.051192316228952664,
+      "w2_no_interaction": 0.04277921270300394,
+      "w2_jko": 0.03482679891381245,
+      "window": 12,
+      "t": 0.65
+    },
+    {
+      "w2_persistence": 0.06108596075116219,
+      "w2_gaussian_moments": 0.033269549260237355,
+      "w2_no_interaction": 0.04448827393160206,
+      "w2_jko": 0.03531305297918219,
+      "window": 13,
+      "t": 0.7000000000000001
+    },
+    {
+      "w2_persistence": 0.0508177910346373,
+      "w2_gaussian_moments": 0.037107672156869685,
+      "w2_no_interaction": 0.039201374054080224,
+      "w2_jko": 0.024745741902727988,
+      "window": 14,
+      "t": 0.75
+    },
+    {
+      "w2_persistence": 0.05522421379444242,
+      "w2_gaussian_moments": 0.04797093882201804,
+      "w2_no_interaction": 0.044644173714963466,
+      "w2_jko": 0.04374460972547987,
+      "window": 15,
+      "t": 0.8
+    }
+  ],
+  "notes": "Parameters from training windows only. Persistence is the no-skill baseline. JKO uses fitted (a,b) with tau=dt and M=80.",
+  "supports_claim": true,
+  "gaussian_beats_persistence": true,
+  "runtime_sec": 0.5867702960968018,
+  "command": "python experiments/07_distribution_forecast.py"
+}
