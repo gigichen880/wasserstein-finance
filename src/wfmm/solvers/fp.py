@@ -70,7 +70,7 @@ def fokker_planck(
         t = n * dt
         c = 0.0 if tilt is None else float(tilt(t))
         mu = float(np.sum(x * m) * dx)
-        vel = predicted_drift(x, mu, model) + model.a * c
+        vel = predicted_drift(x, mu, model, center=c)
         L = _flux_matrix(x, dx, model.beta, vel)
         if scheme == "explicit":
             m_new = m + dt * (L @ m)
@@ -79,19 +79,24 @@ def fokker_planck(
             m_new = spsolve(A, m)
         else:
             raise ValueError(scheme)
-        mass = float(np.sum(m_new) * dx)
+        signed_mass = float(np.sum(m_new) * dx)
         min_mass = float(np.min(m_new))
         neg_mass = float(np.sum(np.minimum(m_new, 0.0)) * dx)
-        if not np.isfinite(m_new).all() or abs(mass) > 1e3:
+        if not np.isfinite(m_new).all() or abs(signed_mass) > 1e3:
             diverged = True
         t_next = (n + 1) * dt
         m_clip = np.clip(m_new, 0.0, None)
         mu_n, var_n = moments_grid(m_clip, x, dx)
         m_for_e = normalize(m_new, dx) if np.isfinite(m_new).all() else m_new
-        energy = free_energy_grid(m_for_e, x, dx, model) if not diverged else float("inf")
+        if diverged:
+            energy0 = energy_c = float("inf")
+        else:
+            energy0 = free_energy_grid(m_for_e, x, dx, model, center=0.0)
+            energy_c = free_energy_grid(m_for_e, x, dx, model, center=c)
         hist.append(dict(
-            t=t_next, energy=energy, mean=mu_n, var=var_n,
-            min_mass=min_mass, neg_mass=neg_mass, mass=mass, diverged=diverged,
+            t=t_next, energy=energy0, energy_tilt=energy_c, tilt_center=c,
+            mean=mu_n, var=var_n, min_mass=min_mass, neg_mass=neg_mass,
+            mass=signed_mass, signed_mass=signed_mass, diverged=diverged,
         ))
         while pending and t_next >= pending[0] - 1e-12:
             snapshots[pending[0]] = normalize(m_new.copy(), dx) if not diverged else m_new.copy()

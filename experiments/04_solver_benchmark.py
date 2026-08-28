@@ -1,19 +1,18 @@
-"""Experiment D — controlled JKO vs PDE solver benchmark.
+"""Experiment D — structural solver comparison (not an accuracy ranking).
 
-Does not claim JKO is more accurate at equal resolution unless the table
-supports a fair (runtime- or dof-controlled) comparison.
+Signed mass of the conservative flux scheme is separate from positivity.
+Explicit Euler may keep ∫m dx while developing m < 0 and then diverging.
 """
 
 from __future__ import annotations
 
 import argparse
 import time
+from pathlib import Path
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -21,9 +20,8 @@ from wfmm.io_util import save_csv, save_json
 from wfmm.model import Model, bimodal_pdf
 from wfmm.paths import FIGS_DIR, RESULTS_DIR, ensure_output_dirs
 from wfmm.plotting import panel_label, save_fig
-from wfmm.solvers.fp import cfl_dt, equilibrium_pdf, fokker_planck, make_grid, normalize
+from wfmm.solvers.fp import cfl_dt, fokker_planck, make_grid, normalize
 from wfmm.solvers.jko import JKO1D
-from wfmm.transport import w2_densities, w2_samples
 
 
 def _fd_run(model, n, dt_factor, t_final, scheme):
@@ -32,135 +30,139 @@ def _fd_run(model, n, dt_factor, t_final, scheme):
     dt = dt_factor * dt_cfl
     m0 = bimodal_pdf(x)
     t0 = time.perf_counter()
-    mT, hist, _ = fokker_planck(m0, x, dx, model, t_final, dt, scheme=scheme, renormalize=False)
+    mT, hist, _ = fokker_planck(
+        m0, x, dx, model, t_final, dt, scheme=scheme, renormalize=False
+    )
     runtime = time.perf_counter() - t0
     energy = np.array([h["energy"] for h in hist], dtype=float)
-    mass = np.array([h["mass"] for h in hist], dtype=float)
+    signed = np.array([h["signed_mass"] for h in hist], dtype=float)
+    neg = np.array([h["neg_mass"] for h in hist], dtype=float)
     min_mass = np.array([h["min_mass"] for h in hist], dtype=float)
-    means = np.array([h["mean"] for h in hist], dtype=float)
-    vars_ = np.array([h["var"] for h in hist], dtype=float)
-    t = np.array([h["t"] for h in hist])
     diverged = bool(hist[-1]["diverged"]) or not np.isfinite(energy).all()
-    m_inf = equilibrium_pdf(x, model)
-    m_end = normalize(np.clip(mT, 0, None), dx) if np.isfinite(mT).all() else mT
-    w2 = w2_densities(m_end, m_inf, x, dx) if np.isfinite(m_end).all() else float("inf")
-    mu0 = float(np.sum(x * normalize(m0, dx)) * dx)
-    var0 = float(np.sum((x - mu0) ** 2 * normalize(m0, dx)) * dx)
-    mean_err = float(np.nanmean(np.abs(means - model.mean_law(mu0, t)))) if np.isfinite(means).all() else float("inf")
-    var_err = float(np.nanmean(np.abs(vars_ - model.var_law(var0, t)))) if np.isfinite(vars_).all() else float("inf")
     finite_e = energy[np.isfinite(energy)]
     return dict(
-        method=scheme, n=n, dx=dx, dt=dt, dt_factor=dt_factor, tau=None, M=None,
-        runtime_sec=runtime, stable=not diverged,
+        method=scheme, n=n, dx=float(dx), dt=float(dt), dt_factor=dt_factor,
+        tau=None, M=None, runtime_sec=runtime, stable=not diverged,
         energy_increases=int(np.sum(np.diff(finite_e) > 1e-9)) if finite_e.size > 1 else None,
-        mass_err=float(np.nanmax(np.abs(mass - 1.0))) if np.isfinite(mass).all() else float("inf"),
+        signed_mass_err=float(np.nanmax(np.abs(signed - 1.0))) if np.isfinite(signed).all() else float("inf"),
+        neg_mass_min=float(np.nanmin(neg)) if np.isfinite(neg).all() else float("nan"),
         min_density=float(np.nanmin(min_mass)) if np.isfinite(min_mass).all() else float("nan"),
-        mean_mae=mean_err, var_mae=var_err, w2_to_eq=w2,
-        terminal_var=float(vars_[-1]) if np.isfinite(vars_[-1]) else float("nan"),
-        theory_var=model.sigma2_inf,
-    ), hist, x, m_end, m_inf
+        lost_positivity=bool(np.nanmin(min_mass) < -1e-12) if np.isfinite(min_mass).all() else True,
+    ), hist, x, mT
 
 
 def _jko_run(model, M, tau, t_final):
     jko = JKO1D(model, m=M)
-    Q0 = jko.quantile_of_mixture([(0.5, -2.0, 0.2), (0.5, 2.0, 0.2)])
+    Q0 = jko.quantile_of_mixture([(0.5, -2.0, 0.2), (0.5, 2.0, 0.2)], seed=0)
     n_steps = max(1, int(round(t_final / tau)))
     t0 = time.perf_counter()
     Qs = jko.flow(Q0, tau=tau, n_steps=n_steps)
     runtime = time.perf_counter() - t0
     energies = np.array([jko.energy(Q) for Q in Qs])
     t = np.arange(len(Qs)) * tau
-    mus, vars_ = zip(*[jko.moments(Q) for Q in Qs])
-    mus, vars_ = np.array(mus), np.array(vars_)
-    mu0, var0 = mus[0], vars_[0]
-    Q_inf = jko.quantile_of_gaussian(0.0, model.sigma2_inf)
-    w2 = w2_samples(Qs[-1], Q_inf)
+    slopes = [np.min(np.diff(Q)) for Q in Qs]
     return dict(
         method="jko", n=None, dx=None, dt=None, dt_factor=None, tau=tau, M=M,
         runtime_sec=runtime, stable=True,
         energy_increases=int(np.sum(np.diff(energies) > 1e-9)),
-        mass_err=0.0, min_density=0.0,
-        mean_mae=float(np.mean(np.abs(mus - model.mean_law(mu0, t)))),
-        var_mae=float(np.mean(np.abs(vars_ - model.var_law(var0, t)))),
-        w2_to_eq=w2, terminal_var=float(vars_[-1]), theory_var=model.sigma2_inf,
-    ), t, energies
+        signed_mass_err=0.0, neg_mass_min=0.0, min_density=0.0,
+        lost_positivity=False,
+        min_quantile_increment=float(np.min(slopes)),
+    ), t, energies, hist_mass(Qs, t)
+
+
+def hist_mass(Qs, t):
+    return dict(t=t, signed_mass=np.ones_like(t), neg_mass=np.zeros_like(t),
+                min_mass=np.zeros_like(t), energy=None)
 
 
 def run(model: Model | None = None, t_final: float = 1.5) -> dict:
     model = model or Model()
     rows = []
     traces = {}
-    # modest grid: enough to see CFL failure and structure preservation
     for n in (81, 161):
         for fac in (0.5, 1.8):
             for scheme in ("explicit", "implicit"):
-                row, hist, x, m_end, m_inf = _fd_run(model, n, fac, t_final, scheme)
+                row, hist, x, mT = _fd_run(model, n, fac, t_final, scheme)
                 rows.append(row)
-                key = f"{scheme}_N{n}_f{fac}"
-                traces[key] = dict(
+                traces[f"{scheme}_N{n}_f{fac}"] = dict(
                     t=np.array([h["t"] for h in hist]),
                     energy=np.array([h["energy"] for h in hist], dtype=float),
+                    signed_mass=np.array([h["signed_mass"] for h in hist], dtype=float),
+                    neg_mass=np.array([h["neg_mass"] for h in hist], dtype=float),
+                    min_mass=np.array([h["min_mass"] for h in hist], dtype=float),
                     method=scheme, n=n, dt_factor=fac,
                 )
     jko_traces = {}
-    for M in (80, 160):
-        for tau in (0.05, 0.1):
-            row, t, energies = _jko_run(model, M, tau, t_final)
-            rows.append(row)
-            jko_traces[f"jko_M{M}_tau{tau}"] = dict(t=t, energy=energies, M=M, tau=tau)
+    for M, tau in ((80, 0.1), (160, 0.05)):
+        row, t, energies, _ = _jko_run(model, M, tau, t_final)
+        rows.append(row)
+        jko_traces[f"jko_M{M}_tau{tau}"] = dict(t=t, energy=energies, M=M, tau=tau)
 
-    # representative figure traces: N=161, factor 1.8, JKO M=240 tau=0.1
+    expl = next(r for r in rows if r["method"] == "explicit" and r["dt_factor"] == 0.5 and r["n"] == 161)
+    expl_cfl = next(r for r in rows if r["method"] == "explicit" and r["dt_factor"] == 1.8 and r["n"] == 161)
+    impl = next(r for r in rows if r["method"] == "implicit" and r["dt_factor"] == 0.5 and r["n"] == 161)
+    jko = next(r for r in rows if r["method"] == "jko" and r["M"] == 160)
     metrics = dict(
         claim="numerical_method",
         t_final=t_final, model=model.as_dict(),
         rows=rows,
+        explicit_below_cfl_signed_mass_err=expl["signed_mass_err"],
+        explicit_below_cfl_lost_positivity=expl["lost_positivity"],
+        explicit_above_cfl_stable=expl_cfl["stable"],
+        explicit_above_cfl_lost_positivity=expl_cfl["lost_positivity"],
+        implicit_signed_mass_err=impl["signed_mass_err"],
+        implicit_lost_positivity=impl["lost_positivity"],
+        jko_energy_increases=jko["energy_increases"],
         notes=(
-            "Explicit CFL failure is expected. JKO uses a different discretization "
-            "(quantile nodes vs grid points, tau vs dt); do not read terminal variance "
-            "as 'more accurate at equal resolution' without matching runtime or DOF."
+            "Conservative flux: signed mass ∫m dx is separate from positivity. "
+            "Explicit Euler below CFL keeps signed mass; above CFL it loses "
+            "positivity and can diverge. Do not read this table as an accuracy ranking."
         ),
     )
     return dict(rows=rows, traces=traces, jko_traces=jko_traces, metrics=metrics, model=model)
 
 
 def figure(data, path) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.3))
     ax = axes[0]
     for key, tr in data["traces"].items():
         if "N161_f1.8" in key:
-            y = np.array(tr["energy"], dtype=float)
-            y = np.where(np.isfinite(y), y, np.nan)
+            y = np.where(np.isfinite(tr["energy"]), tr["energy"], np.nan)
             ax.plot(tr["t"], y, lw=1.3, label=tr["method"])
     for key, tr in data["jko_traces"].items():
-        if "M160_tau0.1" in key:
-            ax.plot(tr["t"], tr["energy"], lw=1.3, label="jko M=160 tau=0.1")
+        if "M160_tau0.05" in key:
+            ax.plot(tr["t"], tr["energy"], lw=1.3, label="jko M=160 τ=0.05")
     ax.set_xlabel("time")
-    ax.set_ylabel(r"$\mathcal{F}$")
-    ax.set_title("energy at N=161, dt=1.8 CFL (JKO separate tau)", fontsize=9)
+    ax.set_ylabel(r"baseline $\mathcal{F}$")
+    ax.set_title("energy at N=161, dt=1.8 CFL (JKO separate τ)", fontsize=9)
     panel_label(ax, "(a)")
     ax.legend(frameon=False, fontsize=7)
 
     ax = axes[1]
-    rows = data["rows"]
-    labels, w2s, runtimes = [], [], []
-    for r in rows:
-        if r["method"] == "explicit" and r["dt_factor"] == 1.8:
-            continue
-        lab = r["method"]
-        if r["method"] == "jko":
-            lab = f"jko M={r['M']} τ={r['tau']}"
-        else:
-            lab = f"{r['method']} N={r['n']} {r['dt_factor']}CFL"
-        labels.append(lab)
-        w2s.append(r["w2_to_eq"] if np.isfinite(r["w2_to_eq"]) else np.nan)
-        runtimes.append(r["runtime_sec"])
-    ax.scatter(runtimes, w2s)
-    for lab, rt, w in zip(labels, runtimes, w2s):
-        ax.annotate(lab, (rt, w), fontsize=5.5, xytext=(3, 3), textcoords="offset points")
-    ax.set_xlabel("runtime (s)")
-    ax.set_ylabel(r"$W_2$ to $m_\infty$ at $T$")
-    ax.set_title("accuracy vs cost (stable runs)", fontsize=9)
+    tr_e = data["traces"]["explicit_N161_f1.8"]
+    tr_i = data["traces"]["implicit_N161_f0.5"]
+    sm_e = np.array(tr_e["signed_mass"], dtype=float)
+    nm = np.maximum(-np.array(tr_e["neg_mass"], dtype=float), 1e-18)
+    t_e = np.asarray(tr_e["t"])
+    t_i = np.asarray(tr_i["t"])
+    ax.plot(t_i, tr_i["signed_mass"], color="C0", lw=1.4,
+            label="implicit 0.5 CFL, signed mass")
+    mask = np.isfinite(sm_e) & (np.abs(sm_e) < 2.0)
+    ax.plot(t_e[mask], sm_e[mask], color="C3", lw=1.2,
+            label=r"explicit 1.8 CFL, signed mass (while $|\int m|\leq 2$)")
+    ax.axhline(1.0, color="k", ls="--", lw=0.8)
+    ax.set_xlabel("time")
+    ax.set_ylabel("signed mass")
+    ax.set_ylim(0.0, 2.05)
+    ax.set_title("signed mass (stable) vs positivity loss", fontsize=9)
     panel_label(ax, "(b)")
+    ax2 = ax.twinx()
+    ax2.semilogy(t_e, nm, color="C3", ls=":", lw=1.2, label=r"explicit $\int m^-$")
+    ax2.set_ylabel(r"explicit $\int m^-$ (log)")
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, frameon=False, fontsize=6)
     save_fig(fig, path, bottom_pad=0.02)
 
 
@@ -173,10 +175,11 @@ def main():
     meta = dict(data["metrics"])
     meta["runtime_sec"] = time.time() - t0
     meta["command"] = "python experiments/04_solver_benchmark.py"
-    # don't duplicate huge rows twice
     save_json(RESULTS_DIR / "exp04_solver_benchmark.json", meta)
     save_csv(RESULTS_DIR / "exp04_solver_benchmark.csv", data["rows"])
-    print("exp04 n_runs", len(data["rows"]))
+    print("exp04 explicit signed-mass (0.5 CFL)", meta["explicit_below_cfl_signed_mass_err"],
+          "above CFL stable?", meta["explicit_above_cfl_stable"],
+          "implicit signed-mass", meta["implicit_signed_mass_err"])
 
 
 if __name__ == "__main__":

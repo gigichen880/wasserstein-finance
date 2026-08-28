@@ -58,11 +58,11 @@ Paper §4.1–4.2 numbers that we *do* reproduce: terminal variance \(0.345\) vs
 
 **Claim tested:** theory / implementation sanity (forced dynamics).
 
-**Hypothesis:** Tilt \(V_t=\frac{a}{2}(x-c_t)^2\), \(c_t=2\) on \([2,4]\), moves the mean toward \(c(1-e^{-a\Delta T})\approx 1.73\), then recovers at rate \(a\). Unadjusted \(F(m_t)\) need not decrease during the tilt.
+**Hypothesis:** Tilt \(V_t=\frac{a}{2}(x-c_t)^2\) is piecewise constant, so the mean ODE is exact: \(\mu=c+(\mu_0-c)e^{-a\Delta T}\). Baseline \(F_0\) need not decrease; instantaneous \(F_{c_t}\) should dissipate after the switch.
 
-**Result:** Mean at shock end \(1.720\) vs \(1.729\). Final mean \(0.034\). Energy *increased on all 1000 forced steps*; zero increases after the shock.
+**Result:** Mean at shock end \(1.720\) vs exact \(c(1-e^{-a\Delta T})=1.729\) (abs err \(0.009\); path RMSE \(0.006\)). Amplitude/duration sweep MAE \(0.009\). Baseline \(F_0\) increased on all forced steps; zero increases after. Instantaneous \(F_{c_t}\) had zero increases after the switch (it jumps at the switch itself).
 
-**Verdict: supports**, including the caveat that forcing injects energy.
+**Verdict: supports**, including the exact (not quasi-static) mean law and the two-energy distinction.
 
 **Command:** `python experiments/02_shock.py`
 
@@ -94,13 +94,30 @@ Paper §4.1–4.2 numbers that we *do* reproduce: terminal variance \(0.345\) vs
 
 **Result:**
 
-- Explicit at \(1.8\times\) CFL: unstable, negative mass, exploding energy (as expected; not a research finding).
-- Implicit: stable, mass error \(\sim 10^{-15}\), zero energy increases, but numerical diffusion inflates variance-law MAE (\(0.06\)–\(0.16\)).
-- JKO: mass/positivity exact, zero energy increases, variance-law MAE \(0.022\)–\(0.048\), \(W_2\) to equilibrium smaller than implicit at this \(T\). Runtime of JKO (\(M=160,\tau=0.05\)): \(0.21\,\mathrm{s}\) vs implicit \(N=161\), \(0.5\times\) CFL: \(0.39\,\mathrm{s}\).
+- Explicit below CFL: signed mass error \(\sim 10^{-15}\), nonnegative on this test.
+- Explicit at \(1.8\times\) CFL: loses positivity and diverges (signed mass then explodes with the instability).
+- Implicit: stable above CFL, signed mass \(\sim 10^{-15}\), zero energy increases.
+- JKO: mass/positivity exact, zero energy increases.
 
-**Verdict: supports structure preservation and large-step stability.** Does **not** support the paper’s “more accurate at equal resolution” sentence: discretizations are not matched (quantile nodes vs grid, \(\tau\) vs \(\Delta t\)), and \(T=1.5\) is not yet equilibrium.
+**Verdict: supports structure preservation.** Do not conflate “negative density” with “mass not conserved.” Accuracy versus analytic truth is Experiment 09.
 
 **Command:** `python experiments/04_solver_benchmark.py`
+
+---
+
+## Experiment 09 — refinement against analytic Gaussian and exact-mixture truth
+
+**Claim tested:** numerical-method claim (accuracy, honestly).
+
+**Hypothesis:** From \(N(1,1)\) the law stays Gaussian, so \(m_T^{\mathrm{exact}}=N(\mu_T,\Sigma_T)\) is known. A bimodal Gaussian mixture remains a mixture under the affine McKean–Vlasov map, so it has an exact non-Gaussian law at every \(t\). Sweep JKO \((\tau,M)\) and FP \((N,\Delta t)\) at common \(T=1\). Do not assume JKO wins.
+
+**Result (Gaussian):** log–log slope \(p=0.95\) at \(M=240\) and \(p=0.96\) at \(M=480\). Best JKO: \(W_2=0.0028\) (\(M=480\), \(\tau=0.0125\), median \(0.387\,\mathrm{s}\) after 1 warm-up + 10 repeats, Apple M2, single-threaded). Best implicit: \(0.018\) (\(N=641\), \(\Delta t=0.025\), \(0.083\,\mathrm{s}\)). Best explicit CFL-stable: \(0.0085\) (\(N=641\), \(9.85\,\mathrm{s}\)). All energy-increase counts \(0\) on stable runs.
+
+**Result (bimodal exact mixture):** JKO \(M=240\), \(\tau=0.0125\) has \(W_2=0.0049\) (versus \(0.0028\) Gaussian). Finest implicit \(N=641\), \(\Delta t=0.025\) has \(W_2=0.024\). Error still tracks \(\tau\); the JKO advantage shrinks but remains.
+
+**Verdict: on these closed-form tests, JKO is more accurate per runtime than Eulerian FP.** Eulerian error is spatially diffusive and explicit is CFL-bound. **Not** a resolution-matched theorem for general data.
+
+**Command:** `python experiments/09_convergence.py`
 
 ---
 
@@ -121,8 +138,9 @@ Paper §4.1–4.2 numbers that we *do* reproduce: terminal variance \(0.345\) vs
 | omitted constant force | \(+0.777\) | \(0.385\) | \(0.040\) | \(0.018\) |
 | anti-gradient | \(-0.928\) | \(0.135\) | \(0.047\) | \(2.87\) |
 | rigid translation | \(-0.489\) | \(0.722\) | \(0.334\) | \(0.437\) |
+| quartic \(V=\frac{a}{2}x^2+\frac{\gamma}{4}x^4\) | \(+0.913\) | \(0.164\) | \(0.014\) | \(0.090\) |
 
-**Verdict: supports as a discriminator, with an important qualification.** Wrong *scale* of parameters barely moves cosine (\(0.88\to 0.81\)) but wrecks the variance law. Alignment without moments would overstate fit. State-dependent diffusion (correct drift, wrong noise) still has cosine \(0.69\): the score term is not a sharp test of \(\beta\).
+**Verdict: supports as a discriminator, with two qualifications.** Wrong *scale* of parameters barely moves cosine (\(0.88\to 0.81\)) but wrecks the variance law. A nearby quartic potential has *higher* cosine than the true DGP (\(0.91\)) while variance MAE rises \(0.019\to 0.090\): alignment can look better on a plausible misspecification. Figure panels now show variance MAE, not only residual.
 
 **Command:** `python experiments/05_synthetic_falsification.py`
 
@@ -186,11 +204,27 @@ At large \(\Delta t\), later windows even change sign. Bandwidth scale \(0.5/1/2
 
 ---
 
+## Experiment 10 — repeated-seed parameter recovery
+
+**Claim tested:** model validation (synthetic, statistical).
+
+**Hypothesis:** Across independent MV trajectories, train-window moment fits recover \(a\) and \(a+b\); \(b\) and \(\beta\) are noisier; out-of-sample moment and \(W_2\) errors beat persistence as \(N\) grows.
+
+**Setup:** \(40\) seeds, \(N\in\{200,800,1600\}\), \(\Delta t\in\{0.05,0.2\}\), \(12\) train + \(8\) test steps, shifted bimodal start.
+
+**Result (default \(N=800\), \(\Delta t=0.05\)):** MAE of \(\hat a=0.062\) (bias \(-0.002\)); \(\widehat{a+b}\) MAE \(0.072\); \(b\) MAE \(0.10\); \(\beta\) MAE \(0.14\). Test mean MAE \(0.0065\); variance MAE \(0.013\). One-step \(W_2\): persistence \(0.050\), Gaussian moments \(0.034\). At \(N=1600\), \(\hat a\) MAE \(0.035\), \(W_2\) \(0.026\) vs persistence \(0.044\). At \(\Delta t=0.2\), \(\widehat{a+b}\) is biased.
+
+**Verdict: supports** recovery of \(a\) and local forecasts under sampling noise on synthetic MV. Identification of \(b\) and \(\beta\) is weaker. Not market data.
+
+**Command:** `python experiments/10_parameter_recovery.py`
+
+---
+
 ## What is and is not supported
 
-1. **Theory / implementation:** Supported (01–03). Closed-form laws, energy dissipation when unforced, shock mean, comparative statics.
-2. **JKO as a numerical method:** Supported for stability, positivity, mass, monotone \(F\). Not supported as a resolution-matched accuracy theorem.
-3. **Model validation on observed markets:** **Not tested.** All of 05–08 use synthetic McKean–Vlasov (or deliberate wrong) particles. The diagnostics *work* and *can reject* wrong dynamics, especially when moments are used with cosine. They do not say that dealer inventories in the wild follow \(F\).
+1. **Theory / implementation:** Supported (01–03, shock sweep). Closed-form laws, exact piecewise-constant shock mean, two-energy distinction, comparative statics.
+2. **JKO as a numerical method:** Supported for stability, positivity, signed-mass (exact), monotone \(F\), no CFL. On the Gaussian refinement test (09), JKO \(W_2\) has log–log slope \(p=0.95\)–\(0.96\) in \(\tau\) and is smaller per runtime than Eulerian FP. On the exact bimodal-mixture subset the advantage shrinks but remains. **Not** supported as a resolution-matched accuracy theorem for general data. Explicit FP *does* conserve signed mass while stable.
+3. **Model validation on observed markets:** **Not tested.** 05–08 and 10 use synthetic McKean–Vlasov (or deliberate wrong) particles. Diagnostics can distinguish wrong dynamics, especially via moments; cosine can look *better* on a nearby quartic. They do not say that dealer inventories in the wild follow \(F\).
 
 Population inventories remain unobserved; that limitation in the paper is unchanged.
 
@@ -205,6 +239,6 @@ The four manuscript changes requested after the experiment audit:
 
 1. Section 4 states that the experiments are numerical verification, not market evidence.
 2. \(b\) is interaction strength / cross-sectional dispersion penalty, not a penalty on similar inventories.
-3. JKO keeps mass, positivity, and energy dissipation without CFL; the equal-resolution accuracy claim is removed.
-4. The empirical program is moment restrictions + distribution forecasting + local directional alignment, in that order.
+3. JKO keeps mass, positivity, and energy dissipation without CFL. Signed mass of explicit FP is conserved while stable. On a Gaussian refinement test, JKO error has log–log slope \(p=0.95\)–\(0.96\) in \(\tau\); an exact bimodal-mixture subset is also reported. Neither is a general equal-resolution theorem.
+4. The empirical program is moment restrictions + distribution forecasting + local directional alignment, in that order, plus repeated-seed recovery and a nearby quartic falsification.
 

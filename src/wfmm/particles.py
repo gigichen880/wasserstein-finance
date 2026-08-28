@@ -78,6 +78,22 @@ def step_translate(X: np.ndarray, shift: float) -> np.ndarray:
     return np.asarray(X, dtype=float).ravel() + shift
 
 
+def step_quartic(X: np.ndarray, model: Model, dt: float, rng: np.random.Generator,
+                 gamma: float = 0.3, substeps: int = 4) -> np.ndarray:
+    """Nearby nonquadratic potential V = (a/2)x^2 + (γ/4)x^4, same quadratic W.
+
+    Drift is -(a x + γ x^3) - b(x-μ). Used as a local misspecification of the
+    quadratic restrictions, not as an obviously wrong generator.
+    """
+    X = np.asarray(X, dtype=float).ravel().copy()
+    h = dt / substeps
+    for _ in range(substeps):
+        mu = float(X.mean())
+        drift = -model.a * X - gamma * X ** 3 - model.b * (X - mu)
+        X = X + drift * h + np.sqrt(2.0 * model.beta * h) * rng.standard_normal(X.size)
+    return X
+
+
 def simulate_snapshots(
     X0: np.ndarray,
     n_steps: int,

@@ -1,4 +1,4 @@
-# Wasserstein Gradient Flows for Mean-Field Market Making
+# A Wasserstein Gradient-Flow Model of Mean-Field Dealer Inventories
 
 Stylized 1-D model: the distribution of dealer inventories is the Wasserstein
 gradient flow of
@@ -14,7 +14,7 @@ Closed form: \(N(0,\beta/(a+b))\), mean rate \(a\), variance rate \(2(a+b)\).
 The experiments separate three claims:
 
 1. Theory / implementation sanity
-2. JKO as a structure-preserving solver
+2. JKO as a structure-preserving solver (and, on the Gaussian test, first-order in τ)
 3. Model validation (synthetic only — no market inventories)
 
 See [EXPERIMENTS.md](EXPERIMENTS.md) for hypotheses, numbers, verdicts, and
@@ -33,14 +33,16 @@ Single experiment:
 ```bash
 python experiments/01_relaxation.py
 python experiments/04_solver_benchmark.py
-python experiments/06_moment_validation.py
+python experiments/09_convergence.py
+python experiments/10_parameter_recovery.py
+python experiments/02_shock.py
 ```
 
 ## Layout
 
 ```text
 src/wfmm/           reusable model, solvers, OT, estimation, diagnostics
-experiments/        01–08 scripts (each writes figs/ and results/)
+experiments/        01–10 scripts (each writes figs/ and results/)
 tests/              unit tests (pytest, pythonpath=src)
 Wasserstein_finance.pdf
 paper/              Overleaf manuscript (`rewrite.tex`)

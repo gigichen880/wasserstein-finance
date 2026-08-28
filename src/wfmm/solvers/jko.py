@@ -93,6 +93,34 @@ class JKO1D:
     def quantile_of_gaussian(self, mu: float, var: float) -> np.ndarray:
         return mu + np.sqrt(var) * norm.ppf(self.u)
 
+    def w2_to_gaussian(self, Q: np.ndarray, mu: float, var: float) -> float:
+        Qex = self.quantile_of_gaussian(mu, var)
+        return float(np.sqrt(np.mean((Q - Qex) ** 2)))
+
+    def quantile_of_gaussian_mixture(self, comps: list[tuple[float, float, float]]) -> np.ndarray:
+        """Exact quantile of a 1-D Gaussian mixture via CDF inversion (no sampling)."""
+        from scipy.stats import norm
+
+        w = np.array([c[0] for c in comps], dtype=float)
+        w = w / w.sum()
+        means = np.array([c[1] for c in comps], dtype=float)
+        sds = np.sqrt(np.array([max(c[2], 1e-18) for c in comps], dtype=float))
+        lo = float(np.min(means - 10.0 * sds))
+        hi = float(np.max(means + 10.0 * sds))
+        a = np.full_like(self.u, lo)
+        b = np.full_like(self.u, hi)
+        for _ in range(60):
+            mid = 0.5 * (a + b)
+            cdf_mid = np.dot(w, [norm.cdf(mid, loc=m, scale=s) for m, s in zip(means, sds)])
+            go_left = cdf_mid >= self.u
+            b = np.where(go_left, mid, b)
+            a = np.where(go_left, a, mid)
+        return 0.5 * (a + b)
+
+    def w2_to_mixture(self, Q: np.ndarray, comps: list[tuple[float, float, float]]) -> float:
+        Qex = self.quantile_of_gaussian_mixture(comps)
+        return float(np.sqrt(np.mean((Q - Qex) ** 2)))
+
     def quantile_of_mixture(self, comps, seed: int = 0) -> np.ndarray:
         rng = np.random.default_rng(seed)
         n = 150000

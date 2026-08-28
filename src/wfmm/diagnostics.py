@@ -107,6 +107,7 @@ def forecast_w2(
     a_plus_b: float | None = None,
     sigma2_inf: float | None = None,
     jko_m: int = 120,
+    with_jko: bool = True,
 ) -> dict:
     """One-step distributional forecasts vs the realized next cloud y."""
     x = np.asarray(x, dtype=float).ravel()
@@ -126,14 +127,15 @@ def forecast_w2(
     scale0 = np.sqrt(var0 / max(var, 1e-12))
     no_int = w2_samples(mu0 + scale0 * (x - mu), y)
 
-    jko = JKO1D(Model(a=a, b=max(a_plus_b - a, 0.0), beta=model.beta), m=jko_m)
-    Q0 = jko.quantile_of_samples(x)
-    Q1 = jko.step(Q0, tau=dt)
-    jko_w2 = w2_samples(Q1, y)
-
-    return {
+    out = {
         "w2_persistence": persist,
         "w2_gaussian_moments": gauss,
         "w2_no_interaction": no_int,
-        "w2_jko": jko_w2,
+        "w2_jko": float("nan"),
     }
+    if with_jko:
+        jko = JKO1D(Model(a=a, b=max(a_plus_b - a, 0.0), beta=model.beta), m=jko_m)
+        Q0 = jko.quantile_of_samples(x)
+        Q1 = jko.step(Q0, tau=dt)
+        out["w2_jko"] = w2_samples(Q1, y)
+    return out

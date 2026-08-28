@@ -123,13 +123,35 @@
       "var_mae": 0.43694510219820515,
       "var_rmse": 0.43694510219820515,
       "var_r2": NaN
+    },
+    {
+      "dgp": "quartic_potential",
+      "eval_a": 1.0,
+      "eval_b": 0.5,
+      "eval_beta": 0.5,
+      "mean_cos": 0.9128201012526262,
+      "mean_cos2": 0.8363056911306974,
+      "mean_residual": 0.1636943088693025,
+      "mean_lambda": 0.06305263498457829,
+      "mean_mae": 0.014427976643886476,
+      "mean_rmse": 0.01991752527434072,
+      "mean_r2": 0.8827653426580422,
+      "var_mae": 0.08979975685217849,
+      "var_rmse": 0.12559679925544331,
+      "var_r2": 0.9649282547631972
     }
   ],
   "true_mean_cos": 0.875630780733245,
   "true_mean_residual": 0.23034839599791423,
-  "all_wrong_models_lower_cosine": true,
+  "true_var_mae": 0.018937893104908027,
+  "wrong_scale_cos": 0.8075408461757374,
+  "wrong_scale_var_mae": 0.3785518317991318,
+  "quartic_cos": 0.9128201012526262,
+  "quartic_var_mae": 0.08979975685217849,
+  "obvious_wrong_lower_cosine": true,
+  "scale_misspec_caught_by_variance": true,
   "supports_claim": true,
-  "notes": "Positive DGP is the quadratic McKean-Vlasov. Remaining rows are misspecified dynamics or misspecified evaluation parameters.",
-  "runtime_sec": 1.5397357940673828,
+  "notes": "Positive DGP is the quadratic McKean-Vlasov. Remaining rows are misspecified dynamics or misspecified evaluation parameters. quartic_potential is a nearby nonquadratic V=(a/2)x^2+(\u03b3/4)x^4. Cosine is scale-blind; variance MAE is the scale-sensitive check.",
+  "runtime_sec": 1.9507079124450684,
   "command": "python experiments/05_synthetic_falsification.py"
 }

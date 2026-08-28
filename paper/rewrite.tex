@@ -1,5 +1,5 @@
 % Central Overleaf rewrite of
-%   William Chang, ``Wasserstein Gradient Flows for Mean-Field Market Making''
+%   William Chang, ``A Wasserstein Gradient-Flow Model of Mean-Field Dealer Inventories''
 %
 % Upload THIS file as the main Overleaf document. Put the eight figures in a
 % figs/ folder next to it (or keep the repo layout: this file in paper/,
@@ -8,16 +8,18 @@
 % What changed relative to Wasserstein_finance.pdf:
 %   * experiments are numerical verification, not market evidence;
 %   * b is a cross-sectional dispersion penalty, not ``crowding = similar inventories'';
-%   * JKO keeps mass/positivity/energy dissipation without CFL; no equal-resolution
-%     accuracy claim;
+%   * JKO keeps mass/positivity/energy dissipation without CFL;
+%   * a matched Gaussian convergence study reports error vs tau, N, and runtime;
 %   * empirical program = moment restrictions + W2 forecasts + local alignment.
-% Theory (Props.~6--8, Thms.~7 and~9, Appendix) is unchanged except the reading of b.
+% Theory (Props.~6--8, Thms.~7 and~9, Appendix) is unchanged except the reading of b
+% and the potential-MFG wording.
 
 \documentclass[11pt]{article}
 
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{graphicx}
+\usepackage[section]{placeins}
 \usepackage[numbers]{natbib}
 \usepackage{booktabs}
 \usepackage{microtype}
@@ -37,7 +39,7 @@
 \newcommand{\dx}{\,dx}
 \newcommand{\dt}{\,dt}
 
-\title{Wasserstein Gradient Flows for Mean-Field Market Making}
+\title{A Wasserstein Gradient-Flow Model of Mean-Field Dealer Inventories}
 \author{William Chang\\
 Department of Applied Mathematics\\
 University of California, Los Angeles\\
@@ -50,18 +52,22 @@ University of California, Los Angeles\\
 \begin{abstract}
 Financial markets do not literally minimize a physical energy, but the distribution
 of strategic agents in a market may evolve toward equilibria that minimize a
-cost-like free-energy functional. This project studies a mean-field market-making
-model in which the population distribution of dealer inventories evolves under the
-combined effect of an inventory/risk penalty, a pairwise interaction, and an
-entropic dispersion term. For the quadratic kernel
-$W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, the interaction
+cost-like free-energy functional. This paper studies a \emph{stylized potential
+mean-field inventory model motivated by market making}, for which the population
+dynamics admit an exact Wasserstein-gradient-flow representation. It is not a
+derivation of that PDE from a general strategic market-making game. For the
+quadratic kernel $W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, the interaction
 \emph{penalizes cross-sectional dispersion} and synchronizes inventories; it is
-not a penalty on dealers holding similar positions. We formulate the
-Fokker--Planck side of the population dynamics as a Wasserstein gradient flow
-whenever the interaction structure is potential, and we discretize the evolution
-with a Jordan--Kinderlehrer--Otto (JKO) proximal scheme. Numerical experiments
-verify the analytic predictions of the quadratic model and the structural
-guarantees of JKO. They are not empirical evidence that dealer inventories in
+not a penalty on dealers holding similar positions. The Fokker--Planck equation
+of this quadratic model is the $W_2$ gradient flow of an explicit free energy,
+which we discretize with a Jordan--Kinderlehrer--Otto (JKO) proximal scheme.
+Numerical experiments verify the analytic moment laws and the structural
+guarantees of JKO (mass, positivity, autonomous energy dissipation, no explicit
+CFL restriction). On the closed-form Gaussian test, JKO error is first-order in
+the proximal step (fitted log--log slope $p\approx 1$ in $\tau$) and smaller
+than Eulerian $W_2$ error at comparable runtime;
+this is a numerical observation on that test, not a general equal-resolution
+theorem. The experiments are not empirical evidence that dealer inventories in
 real markets follow these dynamics. A separate suite of synthetic
 diagnostics---moment restrictions, distributional forecasts, and local directional
 alignment---is developed as a template for a future test on observable
@@ -103,19 +109,18 @@ for moving too far too fast.'' This is the structure we wish to exploit on the
 finance side.
 
 \paragraph{Why market making.}
-Mean-field games (MFGs) provide a setting in which a distribution of strategic
-agents genuinely evolves toward equilibrium. In the market-making model
-of~\cite{GueantLehalleFernandez2013}, a market maker quotes against a continuum
-of strategic market takers whose aggregate behavior enters through a mean-field
-interaction; the equilibrium is characterized by a coupled
-Hamilton--Jacobi--Bellman (HJB) and Fokker--Planck system. The Fokker--Planck
-half of that system governs precisely the population density that our free-energy
-picture is meant to describe. Inventory is the natural state variable: market
-makers dislike large positions, pairwise interaction can synchronize inventories
-across dealers, and exogenous order flow tilts the landscape that the inventory
-distribution relaxes within. Each of these effects has a clean counterpart in a
-free-energy functional, which is what makes the analogy concrete rather than
-decorative.
+Inventory is a natural state variable for a population of dealers: market makers
+dislike large positions, pairwise interaction can synchronize inventories across
+dealers, and exogenous order flow can tilt the landscape that the inventory
+distribution relaxes within. Each of these effects has a counterpart in a
+free-energy functional. The inventory-control tradition of
+Avellaneda--Stoikov~\cite{AvellanedaStoikov08} and
+Gu\'eant--Lehalle--Fernandez-Tapia~\cite{GueantLehalleFernandez2013} supplies
+that motivation; those papers are stochastic-control models of a single market
+maker, not mean-field games. Coupled HJB--Fokker--Planck market-making games do
+exist~\cite{BaldacciBergaultPossamai2023}; we do \emph{not} claim that their
+forward equation coincides with ours. We construct a stylized potential
+mean-field inventory model in which that coincidence is arranged by design.
 
 \paragraph{The central caveat.}
 It is tempting to assert that ``the Fokker--Planck half of an MFG \emph{is} a
@@ -130,10 +135,11 @@ from the HJB equation,
 =0,
 \end{equation}
 and such a drift need not be the gradient of the first variation of any scalar
-energy. The Fokker--Planck equation becomes a bona fide Wasserstein gradient flow
-only under additional structure---for instance potential (variational) MFG
-structure, entropic regularization, or convex costs whose induced drift can be
-written as $-\nabla\delta F/\delta m$. We therefore do not claim that mean-field
+energy. Potentiality of an MFG gives a variational formulation of the game, but a
+Wasserstein gradient-flow representation of the \emph{forward} population
+dynamics additionally requires the equilibrium drift to take the form
+$-\nabla\delta F/\delta m$. The quadratic model studied here is constructed to
+satisfy this stronger condition. We therefore do not claim that mean-field
 market making is ``automatically JKO.'' We instead pose the design question:
 
 \begin{remark}[Scope of the analogy]
@@ -154,13 +160,14 @@ and an entropic term, and we record the precise conditions under which the
 associated Fokker--Planck dynamics are the $W_2$-gradient flow of $F$
 (Section~\ref{sec:prelim}).
 \item We discretize the flow with the JKO scheme~\eqref{eq:jko} and compare it
-to standard Fokker--Planck integrators, checking energy dissipation, conservation
-of mass and positivity, and large-step stability. We do not claim accuracy gains
-at equal spatial resolution.
+to standard Fokker--Planck integrators on structure (signed mass versus
+positivity, energy dissipation, CFL) and, separately, on error versus the
+closed-form Gaussian law. We do not claim a general accuracy ranking at equal
+spatial resolution.
 \item We study comparative statics of the equilibrium inventory distribution in
 the interaction strength $b$ and the entropy weight $\beta$, and the transient
-response to exogenous liquidity shocks modelled as time-dependent tilts of the
-potential. A separate suite of synthetic diagnostics (moment restrictions,
+response to piecewise-constant liquidity shocks, for which the mean ODE is exact
+on each interval. A separate suite of synthetic diagnostics (moment restrictions,
 distributional forecasts, and local directional alignment) is developed as a
 template for a future test on observable market-state distributions; it is not
 itself that test.
@@ -173,14 +180,15 @@ probability measures is developed in~\cite{AGS08}, with the formal Riemannian
 (``Otto'') calculus introduced in~\cite{Otto01} and surveyed
 in~\cite{Villani03,Santambrogio15}. The mean-field game framework originates
 with~\cite{LasryLions07}; see~\cite{CardaliaguetNotes} for the coupled
-HJB--Fokker--Planck system and the notion of potential games. Our market-making
-model follows the strategic mean-field formulation of~\cite{GueantLehalleFernandez2013},
-itself built on the inventory-control approach of~\cite{AvellanedaStoikov08}. On
-the algorithmic side,~\cite{JKOflow} analyze JKO-type proximal descent in
-Wasserstein space, which informs our choice of numerical scheme. Finally,
-Wasserstein distances have been used directly for regime and change-point
-detection in high-dimensional series~\cite{HorvathKokoszka}; we return to this as
-an honest, structure-light alternative to monitoring a JKO residual.
+HJB--Fokker--Planck system and the notion of potential games.
+Inventory-control market making is due to~\cite{AvellanedaStoikov08,GueantLehalleFernandez2013}.
+A genuine mean-field market-making game with a coupled HJB--Fokker--Planck
+system is~\cite{BaldacciBergaultPossamai2023}; we cite it as related strategic
+structure, not as a derivation of the quadratic inventory PDE studied below. On the algorithmic
+side,~\cite{JKOflow} analyze JKO-type proximal descent in Wasserstein space,
+which informs our choice of numerical scheme. Wasserstein distances have also
+been used to monitor changes in a sequence of distributions~\cite{HorvathKokoszkaWang};
+that is a structure-light alternative to testing a specified gradient flow.
 
 \paragraph{Outline.}
 Section~\ref{sec:prelim} collects the required preliminaries. Section~\ref{sec:results}
@@ -310,8 +318,9 @@ F(\rho)+\frac{1}{2\tau}\Wtwo^2(\rho,\rho_k)
 \qquad
 \rho_0=\bar\rho,
 \end{equation}
-with step size $\tau>0$. As $\tau\to 0$ the piecewise-constant interpolation of
-$(\rho_k)$ converges to the gradient flow~\eqref{eq:gf}~\cite{AGS08}; the scheme
+with step size $\tau>0$. As $\tau\to 0$ the piecewise-constant interpolants of
+$(\rho_k)$ converge uniformly in time with respect to $\Wtwo$ to the unique
+continuous gradient-flow solution of~\eqref{eq:gf}~\cite{AGS08}; the scheme
 is the Wasserstein analogue of the implicit Euler method, and inherits its
 unconditional stability, automatic preservation of nonnegativity and total mass,
 and monotone energy decrease $F(\rho_{k+1})\le F(\rho_k)$ \emph{on the autonomous
@@ -373,31 +382,34 @@ and is not, in general, the Wasserstein gradient of any scalar energy.
 The game~\eqref{eq:mfg} is \emph{potential} (variational) if the coupling derives
 from a functional, i.e.\ $f(x,m)=\delta G/\delta m$ for some $G$, so
 that~\eqref{eq:mfg} arises as the optimality system of a single control-of-PDE
-problem. In this case the equilibrium minimizes a global energy, and the forward
-dynamics inherit the gradient-flow / JKO structure of the previous subsections.
+problem. Potentiality gives a variational formulation of the game. It does
+\emph{not} by itself make the forward Fokker--Planck equation a Wasserstein
+gradient flow of a static energy $F$: that additionally requires the equilibrium
+drift to be of the form $-\nabla\delta F/\delta m$.
 \end{definition}
 
 This is the precise hypothesis under which the ``systems move toward lower
-energy'' picture is rigorous.
+energy'' picture is rigorous for the \emph{population} equation: potentiality
+plus gradient drift.
 
-\subsection{The mean-field market-making model}
+\subsection{A stylized mean-field inventory model}
 \label{sec:mm}
 
-We instantiate the state $x$ as a dealer's signed inventory and follow the
-strategic mean-field market-making setup of~\cite{GueantLehalleFernandez2013}, in
-the tradition of inventory-control market making~\cite{AvellanedaStoikov08}. A
-market maker quotes bid and ask prices and accumulates inventory from the order
-flow generated by a continuum of market takers. For the variational study we
-focus on the induced population density $m_t$ of inventories and posit a free
-energy~\eqref{eq:F} in which
+We instantiate the state $x$ as a dealer's signed inventory. The construction is
+motivated by inventory-control market making~\cite{AvellanedaStoikov08,GueantLehalleFernandez2013}
+and by mean-field market-making games~\cite{BaldacciBergaultPossamai2023}, but the
+mathematics below is a \emph{stylized potential mean-field inventory model}: we
+posit a free energy~\eqref{eq:F} on the inventory density $m_t$ rather than
+deriving the population PDE from an HJB feedback. In that energy,
 \begin{itemize}
 \item $V$ penalizes large absolute inventory (inventory risk), e.g.\
 $V(x)=\frac{a}{2}x^2$, capturing mean reversion of positions toward zero;
 \item $W$ is a pairwise interaction. For the quadratic kernel
 $W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, the interaction
-\emph{penalizes cross-sectional dispersion} and synchronizes inventories toward a
-common (here, flat) position. It is not a penalty on dealers holding similar
-inventories;
+\emph{penalizes cross-sectional dispersion}: it synchronizes inventories toward
+their current population mean, while the individual inventory potential $V$
+centers the long-run population at zero. It is not a penalty on dealers holding
+similar inventories;
 \item $\beta$ controls entropic dispersion of inventories across the population;
 \item a time-dependent tilt $V_t(x)$ models exogenous liquidity shocks that
 transiently push the distribution away from equilibrium.
@@ -481,9 +493,11 @@ density;
 \label{eq:edp}
 F(\rho_{k+1})+\frac{1}{2\tau}\Wtwo^2(\rho_{k+1},\rho_k)\le F(\rho_k);
 \end{equation}
-\item[(iv)] as $\tau\to 0$, the piecewise-constant interpolant of $(\rho_k)$
-converges in $C([0,T];\Ptwo(\R))$ to the unique solution of~\eqref{eq:mv} with
-initial datum $\rho_0$.
+\item[(iv)] as $\tau\to 0$, the piecewise-constant interpolants of $(\rho_k)$
+converge uniformly in time with respect to $\Wtwo$ to the unique continuous
+gradient-flow solution of~\eqref{eq:mv} with initial datum $\rho_0$.
+(The interpolants themselves are discontinuous, so they are not elements of
+$C([0,T];\Ptwo(\R))$; the limit is.)
 \end{enumerate}
 \end{theorem}
 
@@ -553,9 +567,12 @@ refer to $b$ as interaction strength or cross-sectional dispersion penalty, not
 as anti-crowding. Second, the mean inventory---the aggregate directional position
 of the dealer population---is the slowest mode, relaxing only at rate $a$ set by
 individual inventory aversion, whereas the dispersion equilibrates faster at rate
-$2(a+b)$. Third, a transient liquidity shock modeled as a tilt
-$V_t(x)=\frac{a}{2}(x-c_t)^2$ displaces the mean toward $c_t$ and is then erased
-at rate $a$.
+$2(a+b)$. Third, a transient liquidity shock modeled as a piecewise-constant tilt
+$V_t(x)=\frac{a}{2}(x-c_t)^2$ with $c_t\equiv c$ on an interval of length
+$\Delta T$ has the \emph{exact} mean
+$\mu(t_0+\Delta T)=c+(\mu(t_0)-c)e^{-a\Delta T}$,
+hence $c(1-e^{-a\Delta T})$ if $\mu(t_0)=0$. This is not a quasi-static
+approximation.
 
 \section{Experiments}
 \label{sec:experiments}
@@ -566,13 +583,9 @@ Unless stated otherwise we use $a=1$, $b=\tfrac12$, $\beta=\tfrac12$, for which
 Theorem~\ref{thm:gauss} gives $\sigma_\infty^2=\beta/(a+b)=1/3$, mean relaxation
 rate $a=1$, and variance relaxation rate $2(a+b)=3$.
 
-These experiments are numerical verification of the proposed model and JKO
-discretization. They are not empirical evidence that dealer inventories in real
-markets follow these dynamics. We keep three claims separate:
-\emph{(i)}~the code reproduces the analytic laws;
-\emph{(ii)}~JKO inherits the structural guarantees of Theorem~\ref{thm:jko};
-\emph{(iii)}~whether observed market-state distributions follow $F$ is left open
-(Section~\ref{sec:diagnostics}).
+These experiments verify the analytic laws and the JKO discretization (claims
+(i)--(ii) of the introduction). Market validity is left to the synthetic
+template in Section~\ref{sec:diagnostics}.
 
 \paragraph{Numerical methods.}
 The Eulerian solvers discretize~\eqref{eq:mv} on a uniform grid of the inventory
@@ -593,8 +606,8 @@ $Q=F_\rho^{-1}$, in which $\Wtwo^2(\rho,\rho_k)=\int_0^1(Q-Q_k)^2\,du$ and
 Each JKO step is a smooth convex program over nondecreasing $Q$, solved by
 L-BFGS. Mass and positivity are exact by construction. For higher-dimensional
 state one would instead use entropic/Sinkhorn proximal steps~\cite{PeyreCuturi19}
-or neural JKO parametrizations; the 1D quantile scheme suffices for the present
-toy model (Appendix~\ref{app:jko1d}).
+or neural JKO parametrizations~\cite{JKOflow}; the 1D quantile scheme suffices
+for the present toy model (Appendix~\ref{app:jko1d}).
 
 \subsection{Inventory relaxation}
 \label{sec:exp-relax}
@@ -609,7 +622,7 @@ variance is $0.345$ against the theoretical $0.333$; the small excess is
 numerical diffusion of the Eulerian scheme. The Wasserstein distance to
 equilibrium falls from $\Wtwo(m_0,m_\infty)=1.55$ to $0.010$.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp01_relaxation.png}
 \caption{Non-Gaussian relaxation of a bimodal inventory law onto $N(0,1/3)$.
@@ -626,25 +639,30 @@ $0.0019$ against $\mu_0 e^{-at}$.
 \subsection{Liquidity shock}
 \label{sec:exp-shock}
 
-Starting from equilibrium, we apply a transient tilt
-$V_t(x)=\frac{a}{2}(x-c_t)^2$ with $c_t=2$ on $t\in[2,4]$ and $c_t=0$
-otherwise. The mean reaches $1.720$ at the end of the window, against the
-quasi-static prediction $c(1-e^{-a\Delta T})=2(1-e^{-2})\approx 1.729$, and then
-decays toward zero at rate $a$ (Figure~\ref{fig:exp02}).
+Starting from equilibrium, we apply a piecewise-constant tilt
+$V_t(x)=\frac{a}{2}(x-c_t)^2$ with $c_t=2$ on $t\in[2,4)$ and $c_t=0$
+otherwise. On each interval the mean ODE $\dot\mu=-a(\mu-c)$ is exact, so
+$\mu(4)=2(1-e^{-2})\approx 1.729$. The implicit scheme reaches $1.720$
+(absolute error $0.009$; path RMSE $0.006$) and then decays toward zero at
+rate $a$ (Figure~\ref{fig:exp02}). A sweep over amplitudes
+$c\in\{1,2,3\}$ and durations $\Delta T\in\{0.5,1,2\}$ has mean absolute error
+$0.009$ against $c(1-e^{-a\Delta T})$.
 
-Because $V_t$ is time-dependent, the unadjusted functional $F$ is not a Lyapunov
-function on the forcing window. The system can follow the correct instantaneous
-Wasserstein gradient while $F(m_t)$ rises: external forcing injects energy. In
-this run $F$ increased on all $1000$ forced steps and had zero energy-increasing
-steps after the tilt was removed. Autonomous dissipation
-(Theorem~\ref{thm:jko}) and externally forced dynamics must be distinguished.
+Two energies must be distinguished. The baseline functional $\mathcal{F}_0$,
+centered at zero, is not a Lyapunov function on the forcing window: it increased
+on every forced step and had zero energy-increasing steps after the tilt was
+removed. The instantaneous tilted energy $\mathcal{F}_{c_t}$ jumps when $c$
+switches (the functional itself changes) and then dissipates on the subsequent
+constant-$c$ interval. Autonomous dissipation (Theorem~\ref{thm:jko}) is not
+claimed across the switching event.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp02_shock.png}
-\caption{Liquidity shock via a time-dependent tilt of $V$. The mean tracks the
-quasi-static prediction; unadjusted $F$ rises on every forced step and decreases
-once the tilt is removed.}
+\caption{Piecewise-constant liquidity shock. The mean tracks the exact ODE
+$\mu=c+(\mu_0-c)e^{-a\Delta t}$ on each interval. Baseline $\mathcal{F}_0$ rises
+during the tilt; instantaneous $\mathcal{F}_{c_t}$ jumps at switches and then
+falls. Panel (d): amplitude/duration sweep versus $c(1-e^{-a\Delta T})$.}
 \label{fig:exp02}
 \end{figure}
 
@@ -660,7 +678,7 @@ Section~\ref{sec:exp-relax}). Fitted mean rates recover $a$ with MAE $0.029$
 cross-sectional \emph{dispersion penalty} that compresses inventories, not a
 penalty on dealers holding similar positions.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp03_parameter_sweep.png}
 \caption{Comparative statics in the interaction strength $b$: equilibrium
@@ -668,66 +686,145 @@ variance decreases as $b$ increases and tracks $\beta/(a+b)$.}
 \label{fig:exp03}
 \end{figure}
 
-\subsection{Solver comparison}
+\subsection{Solver comparison: structure}
 \label{sec:exp-solvers}
 
-We compare explicit FP, implicit FP, and quantile JKO over a small grid of
-spatial resolutions, time steps, and JKO quantile sizes, reporting runtime,
-moment error relative to Theorem~\ref{thm:gauss}, $\Wtwo$ to $m_\infty$, mass
-error, positivity, and energy-increasing steps (Figure~\ref{fig:exp04}). The
-useful question is not whether explicit Euler fails above CFL---that is
-expected---but whether respecting the Wasserstein structure gives the guarantees
-of Theorem~\ref{thm:jko} relative to a stable Eulerian alternative.
-
-Explicit FP at $1.8\times$ the diffusive CFL limit develops negative mass and
-diverges. Implicit FP remains stable, conserves mass to $\sim 10^{-15}$, and
-dissipates $F$, with numerical diffusion visible in the variance law. JKO
-preserves mass and positivity exactly, dissipates $F$ at every step, and has no
-CFL restriction. We \emph{do not} claim that JKO is more accurate at equal
-spatial resolution: the quantile mesh, proximal step $\tau$, and Eulerian
-$\Delta t$ are different discretizations. A fair accuracy ranking would require a
-matched compute/error study, which we have not run.
-Table~\ref{tab:solvers} records the structural comparison only.
+The Eulerian scheme is a conservative flux discretization with no-flux
+boundaries, so the \emph{signed} integral $\int m\,dx$ is a different object from
+positivity. Explicit Euler below the diffusive CFL $\Delta t\le(\Delta x)^2/(2\beta)$
+conserves signed mass to $\sim 10^{-15}$ and stays nonnegative on this test.
+Above CFL it develops large negative mass and diverges; signed mass then explodes
+with the instability, which is not a failure of the flux form while the scheme is
+stable. Implicit Euler remains stable above CFL, conserves signed mass to
+$\sim 10^{-15}$, and stayed positive here. Quantile JKO has no explicit CFL,
+exact normalization and monotonicity by construction, and zero energy-increasing
+steps on the autonomous problem (Figure~\ref{fig:exp04},
+Table~\ref{tab:solvers}).
 
 \begin{table}[t]
 \centering
-\caption{Discretizations of the autonomous quadratic flow. ``CFL'' is the
-explicit diffusive restriction $\Delta t\le (\Delta x)^2/(2\beta)$. We do not
-interpret terminal $\Wtwo$ at unmatched resolution as an accuracy ranking.}
+\caption{Structural comparison on the autonomous bimodal flow, $T=1.5$.
+``CFL'' is the explicit diffusive restriction $\Delta t\le(\Delta x)^2/(2\beta)$.
+Signed mass is $\int m\,dx$ before clipping.}
 \label{tab:solvers}
 \begin{tabular}{lccc}
 \hline
  & Explicit FP & Implicit FP & Quantile JKO \\
 \hline
 Stable above CFL & no & yes & yes (no CFL) \\
-Mass conserved & no & to $\sim 10^{-15}$ & exact \\
-Positivity & fails & stable, numerical diffusion & exact \\
-Energy-increasing steps & diverges & $0$ & $0$ \\
+Signed mass (stable) & $\sim 10^{-15}$ & $\sim 10^{-15}$ & exact \\
+Positivity & fails above CFL & held on this test & exact \\
+Energy-increasing steps & diverges above CFL & $0$ & $0$ \\
 \hline
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp04_solver_benchmark.png}
-\caption{JKO versus explicit and implicit Fokker--Planck integrators. JKO
-preserves mass and positivity and dissipates $F$ with no CFL restriction. We do
-not rank accuracy at unmatched resolution.}
+\caption{Structure, not accuracy. (a)~Energy at $N=161$, $\Delta t=1.8\times$CFL:
+explicit diverges, implicit and JKO dissipate $F$. (b)~Signed mass on the left
+axis (implicit stays at $1$; explicit shown only while $|\int m|\le 2$) and
+explicit $\int m^-$ on a log right axis. Above CFL the explicit scheme loses
+positivity; signed-mass blow-up is the subsequent instability, not a failure of
+the flux form while the scheme is stable.}
 \label{fig:exp04}
+\end{figure}
+
+\subsection{Solver comparison: refinement against analytic truth}
+\label{sec:exp-conv}
+
+To compare accuracy we start from $N(1,1)$, so the law remains Gaussian and
+$m_T^{\mathrm{exact}}=N(\mu_T,\Sigma_T)$ is known from
+Theorem~\ref{thm:gauss}. We evolve to a common $T=1$ (not yet equilibrium:
+$\mu_T=e^{-1}\approx 0.368$, $\Sigma_T\approx 0.367$) and measure
+$W_2(m_T^{\mathrm{num}},m_T^{\mathrm{exact}})$, moment errors, energy error,
+signed mass, positivity, energy increases, and runtime
+(Figure~\ref{fig:exp09}, Table~\ref{tab:conv}).
+
+JKO error is first-order in the proximal step $\tau$ and almost insensitive to
+the quantile size $M\in\{60,480\}$ in this range: at $\tau=0.05$,
+$W_2$ is $0.011$ for $M=60$ and $0.010$ for $M=480$. A fit
+$\log W_2=\alpha+p\log\tau$ over the five-point refinement
+$\tau\in\{0.2,0.1,0.05,0.025,0.0125\}$ yields $p=0.95$ at $M=240$ and
+$p=0.96$ at $M=480$ (the slope increases toward $1$ as $M$ is refined).
+Implicit FP is limited by Eulerian numerical diffusion: at $N=81$,
+refining $\Delta t$ from $0.2$ to $0.025$ only moves $W_2$ from $0.121$ to
+$0.069$. The finest implicit run ($N=641$, $\Delta t=0.025$) still has
+$W_2=0.018$. Explicit CFL-stable runs are more accurate at the same $N$ than
+implicit (they take much smaller steps) but become expensive: $N=641$ at
+$0.5\times$CFL reaches $W_2=0.0085$ in $9.85\,\mathrm{s}$. JKO at $M=480$,
+$\tau=0.0125$ reaches $W_2=0.0028$ in $0.39\,\mathrm{s}$; even $M=60$,
+$\tau=0.0125$ attains $0.0036$ in $0.28\,\mathrm{s}$. All reported JKO and
+stable FP runs had zero energy-increasing steps.
+
+Runtimes in Table~\ref{tab:conv} are the median of $10$ single-threaded repeats
+after one warm-up, on an Apple M2. Scatter points in
+Figure~\ref{fig:exp09}(c)--(d) remain single-run times.
+
+On this Gaussian test, JKO is more accurate per runtime than either Eulerian
+scheme: over the tested range of $M$, its error is dominated by temporal
+discretization, while the grid schemes pay for spatial diffusion and, for
+explicit Euler, for CFL. We still do not claim a theorem that JKO is more
+accurate at equal spatial resolution on general data: $M$ and $N$ are not the
+same discretization. The Gaussian initial law is the one a quantile scheme
+represents exactly. As a check, we also evolve the original bimodal Gaussian
+mixture, which remains a mixture under the affine McKean--Vlasov map
+$X_t=\mu_0 e^{-at}+e^{-(a+b)t}(X_0-\mu_0)+Z_t$ with
+$Z_t\sim N\bigl(0,\tfrac{\beta}{a+b}(1-e^{-2(a+b)t})\bigr)$,
+so each component mean and variance is known exactly and the weights are fixed.
+That exact non-Gaussian law is the reference for the open markers in
+Figure~\ref{fig:exp09}(c). On this subset the quantile representation is less
+favorable: at $M=240$, $\tau=0.0125$, JKO $W_2$ is $0.0049$ versus $0.0028$ on
+the Gaussian test, and at $\tau=0.05$ it is $0.018$ versus $0.011$. The error
+still tracks $\tau$. The finest implicit comparison ($N=641$, $\Delta t=0.025$)
+has $W_2=0.024$ (versus $0.018$ Gaussian). JKO remains more accurate than the
+Eulerian runs on this exact non-Gaussian law; the gap is smaller than on the
+Gaussian test, which is consistent with not promoting the Gaussian ranking into
+a theorem.
+
+\begin{table}[t]
+\centering
+\caption{Representative refinement against $m_T^{\mathrm{exact}}=N(\mu_T,\Sigma_T)$
+at $T=1$, $\mu_0=1$, $\Sigma_0=1$. $W_2$ is to the exact law, not to $m_\infty$.
+Runtimes are the median of $10$ single-threaded repeats after one warm-up, on
+an Apple M2.}
+\label{tab:conv}
+\begin{tabular}{lcccc}
+\hline
+Method & setting & $W_2$ to exact & $|\Sigma_T-\Sigma_T^{\mathrm{ex}}|$ & runtime (s) \\
+\hline
+JKO & $M=240$, $\tau=0.05$ & $0.011$ & $0.0046$ & $0.094$ \\
+JKO & $M=480$, $\tau=0.0125$ & $0.0028$ & $0.00076$ & $0.387$ \\
+Implicit FP & $N=161$, $\Delta t=0.05$ & $0.049$ & $0.049$ & $0.015$ \\
+Implicit FP & $N=641$, $\Delta t=0.025$ & $0.018$ & $0.015$ & $0.083$ \\
+Explicit FP & $N=161$, $0.5\times$CFL & $0.031$ & $0.037$ & $0.196$ \\
+Explicit FP & $N=641$, $0.5\times$CFL & $0.0085$ & $0.0093$ & $9.85$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp09_convergence.png}
+\caption{Refinement against closed-form laws at $T=1$.
+(a)~JKO $W_2$ versus $\tau$ on the Gaussian test, with a slope-$1$ reference.
+(b)~Implicit FP $W_2$ versus $\Delta t$.
+(c)~$W_2$ versus runtime: filled markers are Gaussian truth; open markers are
+the exact bimodal-mixture law. (d)~Gaussian variance error versus runtime.}
+\label{fig:exp09}
 \end{figure}
 
 \section{Synthetic diagnostics and a template for empirical tests}
 \label{sec:diagnostics}
 
 Dealer inventories are not observed at the population level, so this section is
-not an empirical study of markets. It records a suite of synthetic tests that
-\emph{would} be run, in this order, on an observable market-state distribution,
-and it checks that the tests accept data generated by $F$ and reject several
-deliberately wrong dynamics.
+a synthetic template rather than an empirical study. The tests distinguish data
+generated by $F$ from several deliberately wrong dynamics, including a nearby
+nonquadratic potential, with no calibrated hypothesis test of controlled size.
 
-A general mean-field market-making game need not be a Wasserstein gradient flow
-(Remark~\ref{rem:scope}). Even under~\eqref{eq:mv}, cosine alignment cannot carry
-the empirical claim by itself. We treat three complementary diagnostics.
+Even under~\eqref{eq:mv}, cosine alignment cannot carry the empirical claim by
+itself. We treat three complementary diagnostics.
 
 \paragraph{Moment restrictions (first).}
 The quadratic model gives low-dimensional, hard-to-hide predictions. On a
@@ -751,17 +848,34 @@ that is the result; a more flexible score estimator should not be used to hide
 it.
 
 On McKean--Vlasov particles generated from the true $(a,b,\beta)$, a
-chronological split recovers $\hat a=0.984$ (true $1$) and
+chronological split on one trajectory recovers $\hat a=0.984$ (true $1$) and
 $\widehat{a+b}=1.455$ (true $1.5$), with out-of-sample mean MAE $0.004$ and
-variance MAE $0.008$ (Figure~\ref{fig:exp06}).
+variance MAE $0.008$ (Figure~\ref{fig:exp06}). Repeating the fit across $40$
+independent seeds (training window of $12$ steps, then $8$ test steps) gives,
+at $N=800$ particles and $\Delta t=0.05$, MAE $0.062$ for $\hat a$
+(bias $-0.002$) and $0.072$ for $\widehat{a+b}$. Recovered $b$ and $\beta$ are
+noisier (MAE $0.10$ and $0.14$): they are inferred from differences and products
+of the two moment rates. At $N=1600$ the MAE of $\hat a$ falls to $0.035$.
+Out-of-sample one-step $W_2$ of the fitted Gaussian-moment predictor is $0.034$
+versus $0.050$ for persistence ($N=800$; Figure~\ref{fig:exp10}). Larger
+$\Delta t=0.2$ introduces a visible bias in $\widehat{a+b}$.
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp06_moment_validation.png}
 \caption{Train-then-test moment restrictions on synthetic McKean--Vlasov
-particles. Out-of-sample mean and variance increments match the closed-form
-laws. Not a test on market inventories.}
+particles (one trajectory). Out-of-sample mean and variance increments match the
+closed-form laws.}
 \label{fig:exp06}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp10_parameter_recovery.png}
+\caption{Repeated-seed synthetic parameter recovery ($40$ seeds). MAE of $\hat a$,
+out-of-sample variance MAE, and one-step $W_2$ versus persistence, as particle
+count and $\Delta t$ vary.}
+\label{fig:exp10}
 \end{figure}
 
 \paragraph{Distribution forecasting (second).}
@@ -778,12 +892,11 @@ forward. (A short, far-from-equilibrium training window can still mis-identify
 $\sigma_\infty^2$; local increments may forecast even when the Gibbs variance is
 not recovered.)
 
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp07_distribution_forecast.png}
 \caption{One-step $\Wtwo$ forecasts on synthetic data generated by the model.
-JKO ($0.036$) and moment matching beat persistence ($0.064$). A synthetic sanity
-check, not an empirical finding.}
+JKO ($0.036$) and moment matching beat persistence ($0.064$).}
 \label{fig:exp07}
 \end{figure}
 
@@ -822,31 +935,7 @@ and $0.35$ at $\Delta t=0.40$ (Figure~\ref{fig:exp08}), with later large windows
 changing sign. Directional agreement is a local statement; $\Delta t$ is not a
 pure nuisance that cosine removes.
 
-\emph{Cosine is blind to overall scale.} The map
-$(a,b,\beta)\mapsto c(a,b,\beta)$ multiplies $v_{\mathrm{pred}}$ by $c$ and
-leaves $\cos\theta$ unchanged. Evaluating the true trajectory at deliberately
-wrong parameters moves cosine only from $0.88$ to $0.81$, while variance MAE
-jumps from $0.019$ to $0.38$ (Figure~\ref{fig:exp05}). Moment restrictions
-recover the missing timescale; alignment does not. That is a reason to
-run~\eqref{eq:mean-restrict}--\eqref{eq:var-restrict} first, not an
-implementation footnote.
-
-On deliberately wrong generators (nonlinear $\tanh$ drift, omitted constant
-force, anti-gradient, rigid translation) cosine and/or the moment laws
-deteriorate, as they should. State-dependent diffusion with the correct drift
-still yields cosine $\approx 0.69$: the score term is not a sharp test of
-$\beta$.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.85\linewidth]{exp05_synthetic_falsification.png}
-\caption{Synthetic falsification: cosine and moment errors on the true flow
-versus misspecified generators. Wrong overall scale barely moves cosine while
-wrecking the variance law.}
-\label{fig:exp05}
-\end{figure}
-
-\begin{figure}[t]
+\begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp08_directional_alignment.png}
 \caption{Directional alignment versus window size $\Delta t$ on the true flow.
@@ -855,11 +944,42 @@ gradient is a local tangent, OT a finite displacement.}
 \label{fig:exp08}
 \end{figure}
 
+\emph{Cosine is blind to overall scale.} The map
+$(a,b,\beta)\mapsto c(a,b,\beta)$ multiplies $v_{\mathrm{pred}}$ by $c$ and
+leaves $\cos\theta$ unchanged. Evaluating the true trajectory at deliberately
+wrong parameters moves cosine only from $0.88$ to $0.81$, while variance MAE
+jumps from $0.019$ to $0.38$ (Figure~\ref{fig:exp05}, panels (a)--(b)). Moment
+restrictions recover the missing timescale; alignment does not. That is a reason
+to run~\eqref{eq:mean-restrict}--\eqref{eq:var-restrict} first, not an
+implementation footnote.
+
+On deliberately wrong generators (nonlinear $\tanh$ drift, omitted constant
+force, anti-gradient, rigid translation) cosine and/or the moment laws
+deteriorate, as they should. State-dependent diffusion with the correct drift
+still yields cosine $\approx 0.69$: the score term is not a sharp test of
+$\beta$. A nearby nonquadratic potential $V=\frac{a}{2}x^2+\frac{\gamma}{4}x^4$
+($\gamma=0.3$) is more informative than those caricatures: cosine is
+\emph{higher} than on the true quadratic flow ($0.91$ versus $0.88$), while
+variance MAE rises from $0.019$ to $0.090$. Alignment can look better on a
+plausible misspecification; the moment restrictions are what detect it.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{exp05_synthetic_falsification.png}
+\caption{Synthetic falsification. (a)~mean $\cos\theta$; (b)~next-step variance
+MAE; (c)~next-step mean MAE; (d)~unexplained displacement of the Brenier
+\emph{marginals}. Wrong overall scale barely moves cosine while wrecking the
+variance law. A nearby quartic potential has \emph{higher} cosine than the true
+quadratic DGP; moments detect it.}
+\label{fig:exp05}
+\end{figure}
+
 If an observable market-state distribution becomes available, we would run the
 three diagnostics in the order above, with chronological train/test splits and
 control distributions for cosine. Until then, Claim~3---empirical relevance for
 markets---remains open.
 
+\FloatBarrier
 \section{Conclusion}
 \label{sec:conclusion}
 
@@ -872,29 +992,30 @@ McKean--Vlasov--Gibbs densities (Proposition~\ref{prop:eq}); and
 $N(0,\beta/(a+b))$ together with rates $a$ and $2(a+b)$ are available in closed
 form (Theorem~\ref{thm:gauss}). Numerical experiments confirm these predictions.
 JKO preserves probability structure and dissipates $F$ without a CFL
-restriction. Explicit finite differences fail above CFL, as expected. We do not
-claim accuracy superiority at equal resolution.
+restriction. Explicit finite differences fail above CFL, as expected. On the
+closed-form Gaussian test, JKO $W_2$ error is first-order in $\tau$ and smaller
+than Eulerian error at comparable runtime; a subset of the same refinement
+against the exact bimodal-mixture law is reported in
+Section~\ref{sec:exp-conv}. We still do not claim a general equal-resolution
+accuracy theorem.
 
 The interaction $W=\frac{b}{2}(x-y)^2$ with $b>0$ penalizes cross-sectional
-dispersion. A time-dependent tilt can raise the unadjusted energy while the state
-still follows the instantaneous gradient; Lyapunov decrease is an autonomous
-property.
+dispersion. A piecewise-constant tilt has an exact mean ODE on each interval;
+baseline $\mathcal{F}_0$ can rise while the instantaneous tilted energy
+dissipates after the switch. Lyapunov decrease is an autonomous property and is
+not claimed across a jump in $c$.
 
 What remains open is whether any observed market-state distribution is usefully
 approximated by descent of this $F$. The diagnostics
 above---moment restrictions, distributional forecasting, and local directional
 alignment---are a template for that test, not a substitute for it. A general
 market-making mean-field game is not a Wasserstein gradient flow. The quadratic
-specification is the one that makes the structure exact; richer costs need not be
-potential.
+specification makes the structure exact; more general costs and interactions need
+not preserve the same potential or Wasserstein-gradient-flow structure.
 
 \paragraph{Limitations.}
-Dealer inventories are not directly observable at the population level; the
-quadratic specification is the one that makes the gradient-flow structure exact;
-and, as stressed in Remark~\ref{rem:scope}, a general market-making MFG is
-\emph{not} a Wasserstein gradient flow. The closed-form Gaussian results rely on
-the quadratic interaction, and the 1D quantile solver does not extend directly to
-high-dimensional agent states.
+The closed-form Gaussian results rely on the quadratic interaction, and the 1D
+quantile solver does not extend directly to high-dimensional agent states.
 
 \bibliographystyle{plainnat}
 \begin{thebibliography}{99}
@@ -910,6 +1031,12 @@ M.~Avellaneda and S.~Stoikov.
 \newblock High-frequency trading in a limit order book.
 \newblock \emph{Quantitative Finance}, 8(3):217--224, 2008.
 
+\bibitem[Baldacci, Bergault, and Possama\"i(2023)]{BaldacciBergaultPossamai2023}
+B.~Baldacci, P.~Bergault, and D.~Possama\"i.
+\newblock A mean-field game of market-making against strategic traders.
+\newblock \emph{SIAM Journal on Financial Mathematics}, 14(4):1080--1112, 2023.
+\newblock arXiv:2203.13053.
+
 \bibitem[Benamou and Brenier(2000)]{BenamouBrenier00}
 J.-D. Benamou and Y.~Brenier.
 \newblock A computational fluid mechanics solution to the Monge--Kantorovich
@@ -923,10 +1050,11 @@ functions.
 \newblock \emph{Communications on Pure and Applied Mathematics}, 44(4):375--417,
 1991.
 
-\bibitem[Cardaliaguet]{CardaliaguetNotes}
+\bibitem[Cardaliaguet(2013)]{CardaliaguetNotes}
 P.~Cardaliaguet.
-\newblock Notes on mean field games.
-\newblock Technical report, 2013.
+\newblock Notes on mean field games (from P.-L.\ Lions' lectures at Coll\`ege de
+France).
+\newblock Unpublished lecture notes, 2013.
 
 \bibitem[Gu\'eant, Lehalle, and Fernandez-Tapia(2013)]{GueantLehalleFernandez2013}
 O.~Gu\'eant, C.-A. Lehalle, and J.~Fernandez-Tapia.
@@ -934,10 +1062,11 @@ O.~Gu\'eant, C.-A. Lehalle, and J.~Fernandez-Tapia.
 problem.
 \newblock \emph{Mathematics and Financial Economics}, 7:477--507, 2013.
 
-\bibitem[Horv\'ath, Kokoszka, and Rice(2014)]{HorvathKokoszka}
-L.~Horv\'ath, P.~Kokoszka, and G.~Rice.
-\newblock Testing stationarity of functional time series.
-\newblock \emph{Journal of Econometrics}, 179(1):66--82, 2014.
+\bibitem[Horv\'ath, Kokoszka, and Wang(2021)]{HorvathKokoszkaWang}
+L.~Horv\'ath, P.~Kokoszka, and S.~Wang.
+\newblock Monitoring for a change point in a sequence of distributions.
+\newblock \emph{Annals of Statistics}, 49 (2021).
+\newblock doi:10.1214/20-AOS2036.
 
 \bibitem[Jordan, Kinderlehrer, and Otto(1998)]{JKO98}
 R.~Jordan, D.~Kinderlehrer, and F.~Otto.
@@ -1079,12 +1208,23 @@ which is~\eqref{eq:edp}; in particular $F(\rho_{k+1})\le F(\rho_k)$.
 
 (iv) \emph{Convergence as $\tau\to 0$.}
 Estimate~\eqref{eq:edp} is the discrete energy-dissipation inequality of the
-minimizing-movements scheme. Summing it yields the total-square-distance bound
-$\sum_k \Wtwo^2(\rho_{k+1},\rho_k)\le 2\tau(F(\rho_0)-\inf F)$, which gives
-equicontinuity of the piecewise-constant interpolants; by the refined Ascoli
-theorem in $(\Ptwo,W_2)$ a subsequence converges uniformly to an absolutely
-continuous curve, and the $a$-convexity of $F$ identifies the limit as the unique
-gradient flow of~\eqref{eq:mv}~\cite[Thm.~11.1.6 and Thm.~4.0.4]{AGS08};
+minimizing-movements scheme. Summing it yields
+\[
+\sum_k \Wtwo^2(\rho_{k+1},\rho_k)\le 2\tau\bigl(F(\rho_0)-\inf F\bigr).
+\]
+The associated piecewise-constant interpolants $\bar\rho_\tau$ are discontinuous,
+so they are not themselves elements of $C([0,T];\Ptwo(\R))$. The bound gives the
+approximate modulus
+\[
+\Wtwo\bigl(\bar\rho_\tau(t),\bar\rho_\tau(s)\bigr)
+\le
+C\sqrt{|t-s|+\tau},
+\]
+rather than a uniform $\tfrac12$-H\"older estimate independent of $\tau$. By the
+refined Ascoli theorem in $(\Ptwo,W_2)$, a subsequence of interpolants converges
+uniformly in time with respect to $\Wtwo$ to an absolutely continuous (hence
+continuous) curve, and the $a$-convexity of $F$ identifies the limit as the
+unique gradient flow of~\eqref{eq:mv}~\cite[Thm.~11.1.6 and Thm.~4.0.4]{AGS08};
 uniqueness of the limit promotes convergence of the whole family.\qed
 
 \subsection{Proof of Proposition~\ref{prop:eq}}

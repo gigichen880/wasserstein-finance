@@ -12,22 +12,18 @@
     4.0
   ],
   "dt": 0.002,
-  "mean_at_shock_start": 1.7763568394002762e-16,
   "mean_at_shock_end": 1.7203511562252345,
-  "quasi_static_prediction": 1.7293294335267746,
+  "exact_shock_end": 1.7293294335267746,
   "shock_end_abs_error": 0.008978277301540105,
+  "mean_law_rmse": 0.005919753468781091,
   "final_mean": 0.03384313081277405,
-  "final_w2": 0.035264405272628904,
-  "energy_increase_steps_during_shock": 1000,
-  "energy_increase_steps_after_shock": 0,
-  "snap_w2": {
-    "1.0": 0.009284816913421756,
-    "3.0": 1.2509366658529288,
-    "6.0": 0.2404978521028208,
-    "0.0": 0.0
-  },
+  "energy0_increase_steps_during": 999,
+  "energy0_increase_steps_after": 0,
+  "energy_tilt_increase_steps_during_after_switch": 0,
+  "sweep_max_abs_error": 0.013107473958661409,
+  "sweep_mae": 0.008716554136351053,
   "supports_claim": true,
-  "notes": "Unadjusted F may increase during the tilt: forcing injects energy. Monotonicity is required only on unforced segments.",
-  "runtime_sec": 7.217409133911133,
+  "notes": "Piecewise-constant tilt: mean law is exact, not quasi-static. Baseline F_0 can rise during the shock; instantaneous F_c should dissipate after the switch. Lyapunov decrease is not claimed across the jump in c.",
+  "runtime_sec": 46.60156607627869,
   "command": "python experiments/02_shock.py"
 }

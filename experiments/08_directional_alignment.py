@@ -116,20 +116,22 @@ def figure(data, path) -> None:
     panel_label(ax, "(b)")
 
     ax = axes[2]
-    names = ["deterministic", "true MV", "anti-gradient", "translation"]
+    names = ["deterministic step", "true quadratic", "anti-gradient", "rigid translation"]
+    if any("_" in n or n in ("true MV", "deterministic") for n in names):
+        raise RuntimeError(f"code-style labels leaked into figure: {names}")
     vals = [
         data["controls"]["deterministic_step"]["cos"],
         data["controls"]["true_mv_mean"]["mean_cos"],
         data["controls"]["anti_gradient"]["cos"],
         data["controls"]["translation"]["cos"],
     ]
-    ax.bar(names, vals, color=["C2", "C0", "C3", "C1"])
+    ax.bar(np.arange(len(names)), vals, color=["C2", "C0", "C3", "C1"], width=0.72)
+    ax.set_xticks(np.arange(len(names)), labels=names, rotation=20, ha="right", fontsize=8)
     ax.axhline(0.0, color="0.5", lw=0.8)
     ax.set_ylabel(r"$\cos\theta$")
     ax.set_title("controls at matching $N$", fontsize=9)
-    ax.tick_params(axis="x", labelsize=7)
     panel_label(ax, "(c)")
-    save_fig(fig, path, bottom_pad=0.02)
+    save_fig(fig, path, bottom_pad=0.10)
 
 
 def main():

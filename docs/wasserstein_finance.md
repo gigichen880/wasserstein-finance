@@ -183,7 +183,7 @@ JKO is the distributional analogue of implicit gradient descent. The parameter `
 
 ## Current implementation
 
-The library lives in `src/wfmm/`. Experiments are `experiments/01_relaxation.py` through `experiments/08_directional_alignment.py`. Root scripts `mfmm.py`, `make_figures.py`, `gradient_flow_alignment.py`, and `empirical_validation.py` are shims. Reproduce with `python experiments/run_all.py`.
+The library lives in `src/wfmm/`. Experiments are `experiments/01_relaxation.py` through `experiments/10_parameter_recovery.py`. Root scripts `mfmm.py`, `make_figures.py`, `gradient_flow_alignment.py`, and `empirical_validation.py` are shims. Reproduce with `python experiments/run_all.py`.
 
 Claims are kept separate: (1) theory/implementation sanity, (2) JKO structure preservation, (3) empirical relevance — synthetic diagnostics only, no market inventories. Numbers and verdicts: [EXPERIMENTS.md](../EXPERIMENTS.md). Overleaf manuscript: [paper/rewrite.tex](../paper/rewrite.tex).
 
@@ -558,7 +558,8 @@ results/exp04_solver_benchmark.json
 - Explicit FD fails or violates positivity at the large step.
 - Implicit FD remains stable.
 - JKO remains stable, has zero/negligible energy-increase steps, and preserves mass/positivity.
-- Do not claim equal-resolution accuracy superiority.
+- Explicit conservative flux keeps signed mass while stable; above CFL it loses positivity and diverges.
+- On the Gaussian test, report error vs $\tau$/$N$ and vs runtime; do not claim a general equal-resolution theorem.
 
 ---
 
@@ -582,7 +583,7 @@ See [EXPERIMENTS.md](../EXPERIMENTS.md) and [paper/rewrite.tex](../paper/rewrite
 
 ```text
 src/wfmm/                 model, solvers, OT, estimation, diagnostics
-experiments/01_…08_….py
+experiments/01_…10_….py
 paper/rewrite.tex         Overleaf manuscript (full article)
 figs/exp01_….png … exp08_….png
 results/exp01_….json …

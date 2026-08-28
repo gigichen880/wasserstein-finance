@@ -17,6 +17,8 @@ SCRIPTS = [
     "06_moment_validation.py",
     "07_distribution_forecast.py",
     "08_directional_alignment.py",
+    "09_convergence.py",
+    "10_parameter_recovery.py",
 ]
 
 

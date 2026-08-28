@@ -68,6 +68,7 @@ class MomentFit:
     a_plus_b: float
     sigma2_inf: float
     b: float | None
+    beta: float | None
     n_mean_pairs: int
     n_var_pairs: int
     mean_r2: float
@@ -122,11 +123,13 @@ def fit_moment_laws(
     sigma2_inf = alpha / (1.0 - gamma)
     var_r2 = _r2(s_n, alpha + gamma * s_t)
     b = (a_plus_b - a) if np.isfinite(a) else None
+    beta = (sigma2_inf * a_plus_b) if np.isfinite(sigma2_inf) and np.isfinite(a_plus_b) else None
     return MomentFit(
         a=float(a),
         a_plus_b=float(a_plus_b),
         sigma2_inf=float(sigma2_inf),
         b=None if b is None else float(b),
+        beta=None if beta is None else float(beta),
         n_mean_pairs=n_mean,
         n_var_pairs=int(s_t.size),
         mean_r2=float(mean_r2),
