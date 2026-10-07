@@ -1,34 +1,15 @@
-# Overleaf manuscript
+# Manuscript
 
-The full rewrite is a single compilable file:
-
-**[`rewrite.tex`](rewrite.tex)**
-
-Upload that as the Overleaf main document, together with the figures in a
-`figs/` folder next to it:
-
-- `exp01_relaxation.png` … `exp08_directional_alignment.png`
-- `exp09_convergence.png`
-- `exp10_parameter_recovery.png`
-
-In this repo the figures already live in `../figs/`; `rewrite.tex` looks on
-`../figs/`, `figs/`, and `./`.
+ALT 2027 submission: [`rewrite.tex`](rewrite.tex) with [`references.bib`](references.bib), using [`alt2027.cls`](alt2027.cls).
 
 ```bash
 cd paper && latexmk -pdf rewrite.tex
 ```
 
-Relative to `Wasserstein_finance.pdf`, the rewrite:
+The class option `[anon]` withholds names for review. After acceptance, replace `[anon]` by `[final]`.
 
-- studies a stylized potential mean-field inventory model motivated by market
-  making, not a derivation from a general MFG;
-- reads \(b\) as a cross-sectional dispersion penalty (not “crowding = similar inventories”);
-- separates signed mass from positivity in the Eulerian scheme;
-- reports a Gaussian refinement study (JKO error first-order in \(\tau\)) and a
-  subset against the exact bimodal-mixture law; neither is a general
-  equal-resolution theorem;
-- treats piecewise-constant shocks as an exact mean ODE, with \(\mathcal{F}_0\) vs \(\mathcal{F}_{c_t}\);
-- empirical program = moment restrictions + \(W_2\) forecasts + local alignment,
-  including repeated-seed recovery and a nearby quartic falsification.
+There is no page limit, but reviewers may stop after 12 pages of content excluding references. The main argument (gauge, weak identification, intervention, recovery) is in those first 12 pages; proofs and solver checks follow the bibliography.
 
-Theorem numbering matches the original (Remark 1, Definitions 2–3, Theorem 4, …, Theorem 9). Proofs are in the appendix. If you already have an Overleaf `.bib`, you can replace the `thebibliography` block with `\bibliography{...}`.
+An AISTATS 2027 cut is kept as [`rewrite_aistats.tex`](rewrite_aistats.tex) and is not the submission file.
+
+Figures are read from `figs/` next to the file or from `../figs/`.

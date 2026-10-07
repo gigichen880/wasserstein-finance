@@ -1,0 +1,195 @@
+\begin{thebibliography}{29}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Ambrosio et~al.(2008)Ambrosio, Gigli, and Savar{\'e}]{AGS08}
+Luigi Ambrosio, Nicola Gigli, and Giuseppe Savar{\'e}.
+\newblock \emph{Gradient Flows in Metric Spaces and in the Space of Probability
+  Measures}.
+\newblock Birkh{\"a}user, 2 edition, 2008.
+
+\bibitem[Avellaneda and Stoikov(2008)]{AvellanedaStoikov08}
+Marco Avellaneda and Sasha Stoikov.
+\newblock High-frequency trading in a limit order book.
+\newblock \emph{Quantitative Finance}, 8\penalty0 (3):\penalty0 217--224, 2008.
+
+\bibitem[Baldacci et~al.(2023)Baldacci, Bergault, and
+  Possama{\"i}]{BaldacciBergaultPossamai2023}
+Bastien Baldacci, Philippe Bergault, and Dylan Possama{\"i}.
+\newblock A mean-field game of market-making against strategic traders.
+\newblock \emph{SIAM Journal on Financial Mathematics}, 14\penalty0
+  (4):\penalty0 1080--1112, 2023.
+
+\bibitem[Benamou and Brenier(2000)]{BenamouBrenier00}
+Jean-David Benamou and Yann Brenier.
+\newblock A computational fluid mechanics solution to the {Monge--Kantorovich}
+  mass transfer problem.
+\newblock \emph{Numerische Mathematik}, 84:\penalty0 375--393, 2000.
+
+\bibitem[Brenier(1991)]{Brenier91}
+Yann Brenier.
+\newblock Polar factorization and monotone rearrangement of vector-valued
+  functions.
+\newblock \emph{Communications on Pure and Applied Mathematics}, 44\penalty0
+  (4):\penalty0 375--417, 1991.
+
+\bibitem[Bunne et~al.(2022)Bunne, Meng-Papaxanthos, Krause, and
+  Cuturi]{Bunne22}
+Charlotte Bunne, Laetitia Meng-Papaxanthos, Andreas Krause, and Marco Cuturi.
+\newblock Proximal optimal transport modeling of population dynamics.
+\newblock In \emph{Proceedings of the 25th International Conference on
+  Artificial Intelligence and Statistics}, volume 151 of \emph{Proceedings of
+  Machine Learning Research}, 2022.
+
+\bibitem[Cardaliaguet(2013)]{CardaliaguetNotes}
+Pierre Cardaliaguet.
+\newblock Notes on mean field games.
+\newblock Unpublished lecture notes, 2013.
+
+\bibitem[Carrillo et~al.(2003)Carrillo, McCann, and
+  Villani]{CarrilloMcCannVillani03}
+Jos{\'e}~A. Carrillo, Robert~J. McCann, and C{\'e}dric Villani.
+\newblock Kinetic equilibration rates for granular media and related equations:
+  entropy dissipation and mass transportation estimates.
+\newblock \emph{Revista Matem{\'a}tica Iberoamericana}, 19:\penalty0 1--48,
+  2003.
+
+\bibitem[Carrillo et~al.(2006)Carrillo, McCann, and
+  Villani]{CarrilloMcCannVillani06}
+Jos{\'e}~A. Carrillo, Robert~J. McCann, and C{\'e}dric Villani.
+\newblock Contractions in the {$2$-Wasserstein} length space and thermalization
+  of granular media.
+\newblock \emph{Archive for Rational Mechanics and Analysis}, 179:\penalty0
+  217--263, 2006.
+
+\bibitem[Guan et~al.(2026)Guan, Janssen, Lanzetti, Terpin, Schiebinger, and
+  Robeva]{Guan26}
+Vincent Guan, Joseph Janssen, Nicolas Lanzetti, Antonio Terpin, Geoffrey
+  Schiebinger, and Elina Robeva.
+\newblock Gradient-flow {SDE}s have unique transient population dynamics.
+\newblock In \emph{Proceedings of the 29th International Conference on
+  Artificial Intelligence and Statistics}, volume 300 of \emph{Proceedings of
+  Machine Learning Research}, pages 2449--2457, 2026.
+
+\bibitem[Gu{\'e}ant et~al.(2013)Gu{\'e}ant, Lehalle, and
+  Fernandez-Tapia]{GueantLehalleFernandez2013}
+Olivier Gu{\'e}ant, Charles-Albert Lehalle, and Joaquin Fernandez-Tapia.
+\newblock Dealing with the inventory risk: a solution to the market making
+  problem.
+\newblock \emph{Mathematics and Financial Economics}, 7:\penalty0 477--507,
+  2013.
+
+\bibitem[Jordan et~al.(1998)Jordan, Kinderlehrer, and Otto]{JKO98}
+Richard Jordan, David Kinderlehrer, and Felix Otto.
+\newblock The variational formulation of the {Fokker--Planck} equation.
+\newblock \emph{SIAM Journal on Mathematical Analysis}, 29\penalty0
+  (1):\penalty0 1--17, 1998.
+
+\bibitem[Lang and Lu(2022)]{LangLu22}
+Quanjun Lang and Fei Lu.
+\newblock Learning interaction kernels in mean-field equations of first-order
+  systems of interacting particles.
+\newblock \emph{SIAM Journal on Scientific Computing}, 44\penalty0
+  (1):\penalty0 A260--A285, 2022.
+
+\bibitem[Lang and Lu(2023)]{LangLu23}
+Quanjun Lang and Fei Lu.
+\newblock Identifiability of interaction kernels in mean-field equations of
+  interacting particles.
+\newblock \emph{Foundations of Data Science}, 5\penalty0 (4):\penalty0
+  480--502, 2023.
+
+\bibitem[Lasry and Lions(2007)]{LasryLions07}
+Jean-Michel Lasry and Pierre-Louis Lions.
+\newblock Mean field games.
+\newblock \emph{Japanese Journal of Mathematics}, 2:\penalty0 229--260, 2007.
+
+\bibitem[Malrieu(2003)]{Malrieu03}
+Florent Malrieu.
+\newblock Convergence to equilibrium for granular media equations and their
+  {Euler} schemes.
+\newblock \emph{Annals of Applied Probability}, 13\penalty0 (2):\penalty0
+  540--560, 2003.
+
+\bibitem[McCann(1997)]{McCann97}
+Robert~J. McCann.
+\newblock A convexity principle for interacting gases.
+\newblock \emph{Advances in Mathematics}, 128\penalty0 (1):\penalty0 153--179,
+  1997.
+
+\bibitem[Mokrov et~al.(2021)Mokrov, Korotin, Li, Kolesnikov, and
+  Burnaev]{JKOflow}
+Petr Mokrov, Alexander Korotin, Lingxiao Li, Alexander Kolesnikov, and Evgeny
+  Burnaev.
+\newblock Large-scale {Wasserstein} gradient flows.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2021.
+
+\bibitem[Nguyen and Malysheva(2026)]{NguyenMalysheva26}
+Nam~D. Nguyen and Valeriya Malysheva.
+\newblock Beyond gradient flow: identifiability and recovery from distribution
+  snapshots.
+\newblock arXiv:2609.35060, 2026.
+
+\bibitem[Otto(2001)]{Otto01}
+Felix Otto.
+\newblock The geometry of dissipative evolution equations: the porous medium
+  equation.
+\newblock \emph{Communications in Partial Differential Equations}, 26\penalty0
+  (1--2):\penalty0 101--174, 2001.
+
+\bibitem[Persiianov et~al.(2026)Persiianov, Chen, Mokrov, Tyurin, Burnaev, and
+  Korotin]{Persiianov26}
+Mikhail Persiianov, Jiawei Chen, Petr Mokrov, Alexander Tyurin, Evgeny Burnaev,
+  and Alexander Korotin.
+\newblock Learning of population dynamics: inverse optimization meets {JKO}
+  scheme.
+\newblock In \emph{The Fourteenth International Conference on Learning
+  Representations}, 2026.
+
+\bibitem[Peyr{\'e} and Cuturi(2019)]{PeyreCuturi19}
+Gabriel Peyr{\'e} and Marco Cuturi.
+\newblock Computational optimal transport.
+\newblock \emph{Foundations and Trends in Machine Learning}, 11\penalty0
+  (5--6):\penalty0 355--607, 2019.
+
+\bibitem[Santambrogio(2015)]{Santambrogio15}
+Filippo Santambrogio.
+\newblock \emph{Optimal Transport for Applied Mathematicians}.
+\newblock Birkh{\"a}user, 2015.
+
+\bibitem[Schiebinger et~al.(2019)]{Schiebinger19}
+Geoffrey Schiebinger et~al.
+\newblock Optimal-transport analysis of single-cell gene expression identifies
+  developmental trajectories in reprogramming.
+\newblock \emph{Cell}, 176\penalty0 (4):\penalty0 928--943, 2019.
+
+\bibitem[Sznitman(1991)]{Sznitman91}
+Alain-Sol Sznitman.
+\newblock Topics in propagation of chaos.
+\newblock In \emph{Ecole d'Et{\'e} de Probabilit{\'e}s de {Saint-Flour} {XIX}},
+  volume 1464 of \emph{Lecture Notes in Mathematics}. Springer, 1991.
+
+\bibitem[Terpin et~al.(2024)Terpin, Lanzetti, Gadea, and D{\"o}rfler]{Terpin24}
+Antonio Terpin, Nicolas Lanzetti, Mart{\'i}n Gadea, and Florian D{\"o}rfler.
+\newblock Learning diffusion at lightspeed.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2024.
+
+\bibitem[Tsybakov(2009)]{Tsybakov09}
+Alexandre~B. Tsybakov.
+\newblock \emph{Introduction to Nonparametric Estimation}.
+\newblock Springer, 2009.
+
+\bibitem[van~der Vaart(1998)]{vanderVaart98}
+Aad~W. van~der Vaart.
+\newblock \emph{Asymptotic Statistics}.
+\newblock Cambridge University Press, 1998.
+
+\bibitem[Villani(2003)]{Villani03}
+C{\'e}dric Villani.
+\newblock \emph{Topics in Optimal Transportation}.
+\newblock American Mathematical Society, 2003.
+
+\end{thebibliography}

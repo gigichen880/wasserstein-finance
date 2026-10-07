@@ -1,806 +1,1626 @@
-% Central Overleaf rewrite of
-%   William Chang, ``A Wasserstein Gradient-Flow Model of Mean-Field Dealer Inventories''
+% ALT 2027 submission. This file is only the paper source.
+% Use the official template's alt2027.cls / jmlr.cls / jmlrutils.sty.
 %
-% Upload THIS file as the main Overleaf document. Put the eight figures in a
-% figs/ folder next to it (or keep the repo layout: this file in paper/,
-% figures in ../figs/).
+% Official alt2027.cls bug (Overleaf error at cls line 17):
+%   \finalsubmissionfal
+%   se
+% must be a single token on one line:
+%   \finalsubmissionfalse
+% Do not wrap that command. Then recompile.
 %
-% What changed relative to Wasserstein_finance.pdf:
-%   * experiments are numerical verification, not market evidence;
-%   * b is a cross-sectional dispersion penalty, not ``crowding = similar inventories'';
-%   * JKO keeps mass/positivity/energy dissipation without CFL;
-%   * a matched Gaussian convergence study reports error vs tau, N, and runtime;
-%   * empirical program = moment restrictions + W2 forecasts + local alignment.
-% Theory (Props.~6--8, Thms.~7 and~9, Appendix) is unchanged except the reading of b
-% and the potential-MFG wording.
+% Figures: upload the png files in a figs/ folder next to this tex
+% (exp01--exp20, including exp12--exp14 and exp18--exp20).
+% Keep [anon] for review. After acceptance, replace [anon] by [final].
+\documentclass[anon,11pt]{alt2027}
 
-\documentclass[11pt]{article}
-
-\usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb,amsthm,mathtools}
-\usepackage{graphicx}
-\usepackage[section]{placeins}
-\usepackage[numbers]{natbib}
+\usepackage{mathtools}
 \usepackage{booktabs}
 \usepackage{microtype}
-\usepackage[colorlinks,citecolor=blue,linkcolor=blue,urlcolor=blue]{hyperref}
-\usepackage{xcolor}
+\usepackage{times}
+\usepackage{graphicx}
 
-\graphicspath{{../figs/}{figs/}{./}}
-
-\newtheorem{theorem}{Theorem}
-\newtheorem{proposition}[theorem]{Proposition}
-\newtheorem{definition}[theorem]{Definition}
-\newtheorem{remark}[theorem]{Remark}
+\graphicspath{{figs/}{./}{../figs/}}
+\providecommand{\qed}{\hfill\BlackBox}
 
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\Ptwo}{\mathcal{P}_2}
 \newcommand{\Wtwo}{W_2}
-\newcommand{\dx}{\,dx}
-\newcommand{\dt}{\,dt}
+\newcommand{\Var}{\mathrm{Var}}
 
-\title{A Wasserstein Gradient-Flow Model of Mean-Field Dealer Inventories}
-\author{William Chang\\
-Department of Applied Mathematics\\
-University of California, Los Angeles\\
-\texttt{https://williamc.me/}}
-\date{}
+\title[Ambiguity in Interacting Gradient Flows]{%
+Ambiguity, Weak Identification, and Interventions\\
+in Interacting Wasserstein Gradient Flows}
+
+\altauthor{%
+\Name{William Chang} \Email{https://williamc.me/}\\
+\addr Department of Applied Mathematics\\
+University of California, Los Angeles
+}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Financial markets do not literally minimize a physical energy, but the distribution
-of strategic agents in a market may evolve toward equilibria that minimize a
-cost-like free-energy functional. This paper studies a \emph{stylized potential
-mean-field inventory model motivated by market making}, for which the population
-dynamics admit an exact Wasserstein-gradient-flow representation. It is not a
-derivation of that PDE from a general strategic market-making game. For the
-quadratic kernel $W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, the interaction
-\emph{penalizes cross-sectional dispersion} and synchronizes inventories; it is
-not a penalty on dealers holding similar positions. The Fokker--Planck equation
-of this quadratic model is the $W_2$ gradient flow of an explicit free energy,
-which we discretize with a Jordan--Kinderlehrer--Otto (JKO) proximal scheme.
-Numerical experiments verify the analytic moment laws and the structural
-guarantees of JKO (mass, positivity, autonomous energy dissipation, no explicit
-CFL restriction). On the closed-form Gaussian test, JKO error is first-order in
-the proximal step (fitted log--log slope $p\approx 1$ in $\tau$) and smaller
-than Eulerian $W_2$ error at comparable runtime;
-this is a numerical observation on that test, not a general equal-resolution
-theorem. The experiments are not empirical evidence that dealer inventories in
-real markets follow these dynamics. A separate suite of synthetic
-diagnostics---moment restrictions, distributional forecasts, and local directional
-alignment---is developed as a template for a future test on observable
-market-state distributions.
+Population snapshots can predict one observed population while leaving the
+decomposition of its energy ambiguous. We exhibit a gauge that transfers a
+quadratic form between external confinement and pairwise interaction. Subject
+to admissibility and uniqueness, the transfer is invisible along any
+population path whose mean lies in the gauge null space, even when the base
+energy is nonlinear. In a scalar quadratic model we then separate three
+questions. First, centered marginal laws depend on confinement and interaction
+only through their sum, while retaining dependence on diffusion; they need not
+identify both the combined rate and diffusion. All points on the
+confinement--interaction ridge therefore share the same centered laws. Second,
+near that ridge, identification is controlled by two independent
+excitation directions. Information for the confinement rate is exactly
+quadratic in the initial mean, while information for the variance rate
+vanishes quadratically as the initial variance approaches equilibrium.
+We give exact Gaussian Kullback--Leibler divergences, nuisance-adjusted
+information, local expansions of the profiled Fisher matrix, and
+finite-sample two-point lower bounds for both mechanisms. Maximizing
+information for the confinement rate alone can destroy joint identifiability
+of the energy decomposition.
+Third, the ambiguity is consequential: ridge-equivalent models disagree after
+a physical shift of the initial population. Under equal sampling budgets,
+training on a shifted population recovers the decomposition and sharply
+contracts forecast error on an independent shifted population, whereas
+centered training retains a set of intervention forecasts. Weak-variance
+interval constructions are reported only as supporting diagnostics.
+The recovery
+guarantees are for the proved quadratic model; a shifted population reveals
+the displayed gauge but does not establish general nonlinear identifiability.
 \end{abstract}
+
+\begin{keywords}
+identifiability, Wasserstein gradient flows, interacting particles,
+weak identification, snapshot observations, experimental design
+\end{keywords}
 
 \section{Introduction}
 
-A recurring intuition imported from physics into quantitative finance is that
-``systems evolve toward states of lower energy.'' Taken literally at the level of
-prices or returns, the analogy fails: raw asset returns are heavy-tailed,
-nonstationary, and carry no natural notion of a scalar energy that they decrease
-over time. The object that \emph{does} admit such a description is not the price
-but the \emph{distribution of agent states}---dealer inventories, beliefs, risk
-exposures, or order-flow intensities---which can plausibly relax toward an
-equilibrium that minimizes a cost-like functional. The natural geometry for this
-relaxation is not Euclidean but the Wasserstein geometry of optimal transport, in
-which a distribution evolves by transporting probability mass at minimal kinetic
-cost.
-
-This shift of viewpoint is what makes the physical analogy precise. The seminal
-observation of~\cite{JKO98} is that the Fokker--Planck equation can be written as
-the gradient flow, \emph{in the $2$-Wasserstein metric}, of a free-energy
-functional: a density $\rho_t$ moves in the direction of steepest descent of an
-energy $F$, subject to the cost of transporting mass. Their variational
-time-discretization---now called the JKO scheme---replaces the PDE by a sequence
-of minimizations of ``energy plus transport cost,''
-\begin{equation}
-\label{eq:jko}
-\rho_{k+1}
-\in
-\arg\min_{\rho\in\Ptwo(\R^d)}
-\left\{
-F(\rho)+\frac{1}{2\tau}\Wtwo^2(\rho,\rho_k)
-\right\},
-\end{equation}
-which is exactly the statement ``the next state is a low-energy state, penalized
-for moving too far too fast.'' This is the structure we wish to exploit on the
-finance side.
-
-\paragraph{Why market making.}
-Inventory is a natural state variable for a population of dealers: market makers
-dislike large positions, pairwise interaction can synchronize inventories across
-dealers, and exogenous order flow can tilt the landscape that the inventory
-distribution relaxes within. Each of these effects has a counterpart in a
-free-energy functional. The inventory-control tradition of
-Avellaneda--Stoikov~\cite{AvellanedaStoikov08} and
-Gu\'eant--Lehalle--Fernandez-Tapia~\cite{GueantLehalleFernandez2013} supplies
-that motivation; those papers are stochastic-control models of a single market
-maker, not mean-field games. Coupled HJB--Fokker--Planck market-making games do
-exist~\cite{BaldacciBergaultPossamai2023}; we do \emph{not} claim that their
-forward equation coincides with ours. We construct a stylized potential
-mean-field inventory model in which that coincidence is arranged by design.
-
-\paragraph{The central caveat.}
-It is tempting to assert that ``the Fokker--Planck half of an MFG \emph{is} a
-Wasserstein gradient flow.'' This is too strong. In a general MFG the forward
-equation is a continuity equation driven by the optimal feedback control coming
-from the HJB equation,
-\begin{equation}
-\label{eq:mfg-fp}
-\partial_t m
--\nabla\cdot\bigl(m\,D_p H(x,\nabla u,m)\bigr)
--\nu\Delta m
-=0,
-\end{equation}
-and such a drift need not be the gradient of the first variation of any scalar
-energy. Potentiality of an MFG gives a variational formulation of the game, but a
-Wasserstein gradient-flow representation of the \emph{forward} population
-dynamics additionally requires the equilibrium drift to take the form
-$-\nabla\delta F/\delta m$. The quadratic model studied here is constructed to
-satisfy this stronger condition. We therefore do not claim that mean-field
-market making is ``automatically JKO.'' We instead pose the design question:
-
-\begin{remark}[Scope of the analogy]
-\label{rem:scope}
-We seek to \emph{identify or design} a market-making mean-field game whose
-population dynamics admit a Wasserstein-gradient-flow (equivalently, a
-generalized JKO) formulation, and to use that structure for stable computation
-and for interpretability of the resulting equilibria. The energy lives on the
-distribution of \emph{agent states}, never on raw prices or returns.
-\end{remark}
-
-\paragraph{Contributions.}
-Within this scope, the project proceeds as follows.
-\begin{enumerate}
-\item We formulate a free-energy functional $F$ on the distribution of dealer
-inventories that combines an inventory/risk potential, a pairwise interaction,
-and an entropic term, and we record the precise conditions under which the
-associated Fokker--Planck dynamics are the $W_2$-gradient flow of $F$
-(Section~\ref{sec:prelim}).
-\item We discretize the flow with the JKO scheme~\eqref{eq:jko} and compare it
-to standard Fokker--Planck integrators on structure (signed mass versus
-positivity, energy dissipation, CFL) and, separately, on error versus the
-closed-form Gaussian law. We do not claim a general accuracy ranking at equal
-spatial resolution.
-\item We study comparative statics of the equilibrium inventory distribution in
-the interaction strength $b$ and the entropy weight $\beta$, and the transient
-response to piecewise-constant liquidity shocks, for which the mean ODE is exact
-on each interval. A separate suite of synthetic diagnostics (moment restrictions,
-distributional forecasts, and local directional alignment) is developed as a
-template for a future test on observable market-state distributions; it is not
-itself that test.
-\end{enumerate}
-
-\paragraph{Related work.}
-The variational formulation of the Fokker--Planck equation is due
-to~\cite{JKO98}; the metric-geometric theory of gradient flows in the space of
-probability measures is developed in~\cite{AGS08}, with the formal Riemannian
-(``Otto'') calculus introduced in~\cite{Otto01} and surveyed
-in~\cite{Villani03,Santambrogio15}. The mean-field game framework originates
-with~\cite{LasryLions07}; see~\cite{CardaliaguetNotes} for the coupled
-HJB--Fokker--Planck system and the notion of potential games.
-Inventory-control market making is due to~\cite{AvellanedaStoikov08,GueantLehalleFernandez2013}.
-A genuine mean-field market-making game with a coupled HJB--Fokker--Planck
-system is~\cite{BaldacciBergaultPossamai2023}; we cite it as related strategic
-structure, not as a derivation of the quadratic inventory PDE studied below. On the algorithmic
-side,~\cite{JKOflow} analyze JKO-type proximal descent in Wasserstein space,
-which informs our choice of numerical scheme. Wasserstein distances have also
-been used to monitor changes in a sequence of distributions~\cite{HorvathKokoszkaWang};
-that is a structure-light alternative to testing a specified gradient flow.
-
-\paragraph{Outline.}
-Section~\ref{sec:prelim} collects the required preliminaries. Section~\ref{sec:results}
-states the one-dimensional quadratic results. Section~\ref{sec:experiments}
-numerically verifies the model and the JKO discretization.
-Section~\ref{sec:diagnostics} records a synthetic template for a future empirical
-test. Proofs are in Appendix~\ref{app:proofs}.
-
-\section{Preliminaries}
-\label{sec:prelim}
-
-Throughout, $\Ptwo(\R^d)$ denotes the set of Borel probability measures on
-$\R^d$ with finite second moment. Densities are written $\rho$, $m$ and
-identified with the corresponding measures when absolutely continuous with
-respect to Lebesgue measure. We write $f\ast\rho$ for convolution and $D_p H$
-for the gradient of a Hamiltonian $H$ in its momentum slot.
-
-\subsection{Optimal transport and the Wasserstein space}
-
-\begin{definition}[$2$-Wasserstein distance]
-For $\mu,\nu\in\Ptwo(\R^d)$, the squared $2$-Wasserstein distance is
-\begin{equation}
-\label{eq:w2}
-\Wtwo^2(\mu,\nu)
-=
-\inf_{\gamma\in\Pi(\mu,\nu)}
-\int_{\R^d\times\R^d}
-|x-y|^2\,d\gamma(x,y),
-\end{equation}
-where $\Pi(\mu,\nu)$ is the set of couplings of $\mu$ and $\nu$.
-\end{definition}
-
-The metric space $(\Ptwo(\R^d),\Wtwo)$ is the central object of the
-theory~\cite{Villani03,AGS08}. Its dynamic characterization is due
-to~\cite{BenamouBrenier00}:
-\begin{equation}
-\label{eq:bb}
-\Wtwo^2(\mu,\nu)
-=
-\inf_{(\rho_t,v_t)}
-\int_0^1\int_{\R^d}|v_t(x)|^2\rho_t(x)\,dx\,dt,
-\quad
-\partial_t\rho_t+\nabla\cdot(\rho_t v_t)=0,
-\quad
-\rho_0=\mu,\;\rho_1=\nu,
-\end{equation}
-the infimum being over curves in $\Ptwo$ joined by a velocity field through the
-continuity equation. Equation~\eqref{eq:bb} endows $\Ptwo$ with a formal
-Riemannian structure~\cite{Otto01}: tangent vectors at $\rho$ are represented by
-velocity potentials $\phi$ via $\partial_t\rho=-\nabla\cdot(\rho\nabla\phi)$,
-with metric
-$\langle\partial_t^{(1)}\rho,\partial_t^{(2)}\rho\rangle_\rho
-=\int\nabla\phi_1\cdot\nabla\phi_2\,\rho\,dx$.
-This is the geometry in which the gradient flows below are defined.
-
-\subsection{Free-energy functionals and Wasserstein gradient flows}
-
-We consider free-energy functionals of~\cite{JKO98} type, comprising a
-potential, an interaction, and an internal (entropic) term:
-\begin{equation}
-\label{eq:F}
-F(\rho)
-=
-\int_{\R^d} V(x)\rho(x)\,dx
-+
-\frac12
-\iint_{\R^d\times\R^d}
-W(x,y)\rho(x)\rho(y)\,dx\,dy
-+
-\beta\int_{\R^d}\rho(x)\log\rho(x)\,dx,
-\end{equation}
-with $V$ a confining potential, $W$ a symmetric interaction kernel, and
-$\beta>0$. The first variation of $F$ at $\rho$ is
-\begin{equation}
-\label{eq:dF}
-\frac{\delta F}{\delta\rho}(x)
-=
-V(x)+(W\ast\rho)(x)+\beta\bigl(\log\rho(x)+1\bigr).
-\end{equation}
-
-\begin{definition}[Wasserstein gradient flow]
-A curve $(\rho_t)\subset\Ptwo(\R^d)$ is a gradient flow of $F$ in the $W_2$
-geometry if it solves
+Many learning problems recover the dynamics of a population from
+\emph{snapshots}. At a few times one observes an unlabeled sample from the
+current distribution of states, and never the trajectory of an individual.
+Single-cell measurements are the standard example~\cite{Schiebinger19}. A
+common structural assumption is that the population follows a Wasserstein
+gradient flow
 \begin{equation}
 \label{eq:gf}
 \partial_t\rho_t
 =
-\nabla\cdot
-\left(
-\rho_t\nabla\frac{\delta F}{\delta\rho}(\rho_t)
-\right).
+\nabla\cdot\Bigl(\rho_t\nabla\frac{\delta F}{\delta\rho}(\rho_t)\Bigr)
 \end{equation}
-\end{definition}
+of an unknown free energy $F$~\cite{JKO98,AGS08}. Several methods learn $F$
+from snapshots by differentiating through its Jordan--Kinderlehrer--Otto (JKO)
+discretization or its first-order optimality condition, and they typically
+parametrize a potential, a pairwise interaction, and an entropy term
+jointly~\cite{Bunne22,Terpin24}. Those procedures can match an observed
+sequence of marginals while leaving unidentified which component of $F$
+generated the flow.
 
-Substituting~\eqref{eq:dF} into~\eqref{eq:gf} yields the nonlinear
-Fokker--Planck (McKean--Vlasov) equation
+For non-interacting gradient-flow diffusions, the drift and diffusivity are
+identifiable from the marginal flow if and only if the process is observed out
+of equilibrium~\cite{Guan26}. Interaction changes the picture. We give an exact
+account for the quadratic free energy
 \begin{equation}
-\label{eq:mv-general}
-\partial_t\rho_t
-=
-\nabla\cdot\bigl(\rho_t\nabla V\bigr)
-+
-\nabla\cdot\bigl(\rho_t\nabla(W\ast\rho_t)\bigr)
-+
-\beta\Delta\rho_t.
-\end{equation}
-The distribution drifts downhill in the potential $V$ and is dispersed by the
-entropic Laplacian. The interaction $W$ is \emph{not} intrinsically repulsive:
-its sign and shape decide whether the population spreads or synchronizes. For the
-quadratic kernel used below, $W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, one has
-$\nabla(W\ast\rho)=b(x-\mu)$, so the interaction \emph{pulls inventories toward
-the mean}. Along~\eqref{eq:gf} the energy is dissipated at rate
-$\frac{d}{dt}F(\rho_t)=-\int\rho_t\bigl|\nabla\delta F/\delta\rho\bigr|^2 dx\le 0$.
-
-\subsection{The JKO minimizing-movement scheme}
-
-The variational time-discretization of~\cite{JKO98} approximates~\eqref{eq:gf}
-by the proximal iteration
-\begin{equation}
-\label{eq:jko-step}
-\rho_{k+1}
-\in
-\arg\min_{\rho\in\Ptwo(\R^d)}
-\left\{
-F(\rho)+\frac{1}{2\tau}\Wtwo^2(\rho,\rho_k)
-\right\},
-\qquad
-\rho_0=\bar\rho,
-\end{equation}
-with step size $\tau>0$. As $\tau\to 0$ the piecewise-constant interpolants of
-$(\rho_k)$ converge uniformly in time with respect to $\Wtwo$ to the unique
-continuous gradient-flow solution of~\eqref{eq:gf}~\cite{AGS08}; the scheme
-is the Wasserstein analogue of the implicit Euler method, and inherits its
-unconditional stability, automatic preservation of nonnegativity and total mass,
-and monotone energy decrease $F(\rho_{k+1})\le F(\rho_k)$ \emph{on the autonomous
-problem}. This is what recommends~\eqref{eq:jko-step} as a numerical method
-rather than only a theoretical device.
-
-\subsection{Brenier's theorem and the transport map between JKO iterates}
-
-The iteration~\eqref{eq:jko-step} produces the sequence $(\rho_k)$ as a list of
-distributions, but it says nothing directly about \emph{where} mass goes from one
-step to the next. Brenier's theorem supplies this missing object.
-
-\begin{theorem}[Brenier~\cite{Brenier91,Villani03}]
-\label{thm:brenier}
-Let $\mu,\nu\in\Ptwo(\R^d)$ and suppose $\mu$ is absolutely continuous with
-respect to Lebesgue measure. Then the infimum in~\eqref{eq:w2} is attained by a
-unique coupling, induced by a $\mu$-almost-everywhere unique map
-$T:\R^d\to\R^d$: $\nu=T_{\#}\mu$ and
-$\Wtwo^2(\mu,\nu)=\int |x-T(x)|^2\,d\mu(x)$. Moreover $T=\nabla\phi$ for a
-convex potential $\phi$.
-\end{theorem}
-
-Applied with $\mu=\rho_k$ and $\nu=\rho_{k+1}$, there is a unique Brenier map
-$T_k$ with $\rho_{k+1}=(T_k)_{\#}\rho_k$. To first order,
-\begin{equation}
-\label{eq:brenier-disc}
-T_k(x)
-=
-x
--\tau\nabla\frac{\delta F}{\delta\rho}(\rho_{k+1})(x)
-+o(\tau),
-\end{equation}
-so the displacement $T_k-\mathrm{id}$ is proportional to the Wasserstein gradient
-evaluated at the new iterate. This identification underlies the alignment
-diagnostic of Section~\ref{sec:diagnostics}: given consecutive empirical clouds,
-the observed object is the displacement of the two \emph{marginals}, not the
-trajectory of labeled dealers unless identities are observed.
-
-\subsection{Mean-field games and the HJB--Fokker--Planck system}
-
-A representative agent with state $X_t\in\R^d$ chooses a control $\alpha_t$ with
-dynamics $dX_t=\alpha_t\,dt+\sqrt{2\nu}\,dB_t$ to minimize a cost depending on a
-running Lagrangian and on the population $m_t=\mathrm{Law}(X_t)$. At equilibrium
-the value function $u$ and the density $m$ solve
-\begin{equation}
-\label{eq:mfg}
-\begin{cases}
--\partial_t u-\nu\Delta u+H(x,\nabla u)=f(x,m),\\
-\partial_t m-\nu\Delta m-\nabla\cdot\bigl(m\,D_p H(x,\nabla u)\bigr)=0,\\
-m(0,\cdot)=m_0,\quad u(T,\cdot)=g(x,m(T)).
-\end{cases}
-\end{equation}
-As emphasized in Remark~\ref{rem:scope}, the forward equation is a continuity
-equation, but its drift $-D_p H(x,\nabla u)$ is determined by the HJB solution
-and is not, in general, the Wasserstein gradient of any scalar energy.
-
-\begin{definition}[Potential mean-field game]
-\label{def:potential}
-The game~\eqref{eq:mfg} is \emph{potential} (variational) if the coupling derives
-from a functional, i.e.\ $f(x,m)=\delta G/\delta m$ for some $G$, so
-that~\eqref{eq:mfg} arises as the optimality system of a single control-of-PDE
-problem. Potentiality gives a variational formulation of the game. It does
-\emph{not} by itself make the forward Fokker--Planck equation a Wasserstein
-gradient flow of a static energy $F$: that additionally requires the equilibrium
-drift to be of the form $-\nabla\delta F/\delta m$.
-\end{definition}
-
-This is the precise hypothesis under which the ``systems move toward lower
-energy'' picture is rigorous for the \emph{population} equation: potentiality
-plus gradient drift.
-
-\subsection{A stylized mean-field inventory model}
-\label{sec:mm}
-
-We instantiate the state $x$ as a dealer's signed inventory. The construction is
-motivated by inventory-control market making~\cite{AvellanedaStoikov08,GueantLehalleFernandez2013}
-and by mean-field market-making games~\cite{BaldacciBergaultPossamai2023}, but the
-mathematics below is a \emph{stylized potential mean-field inventory model}: we
-posit a free energy~\eqref{eq:F} on the inventory density $m_t$ rather than
-deriving the population PDE from an HJB feedback. In that energy,
-\begin{itemize}
-\item $V$ penalizes large absolute inventory (inventory risk), e.g.\
-$V(x)=\frac{a}{2}x^2$, capturing mean reversion of positions toward zero;
-\item $W$ is a pairwise interaction. For the quadratic kernel
-$W(x,y)=\frac{b}{2}(x-y)^2$ with $b>0$, the interaction
-\emph{penalizes cross-sectional dispersion}: it synchronizes inventories toward
-their current population mean, while the individual inventory potential $V$
-centers the long-run population at zero. It is not a penalty on dealers holding
-similar inventories;
-\item $\beta$ controls entropic dispersion of inventories across the population;
-\item a time-dependent tilt $V_t(x)$ models exogenous liquidity shocks that
-transiently push the distribution away from equilibrium.
-\end{itemize}
-This one-dimensional specification is the toy model on which the JKO scheme is
-tested against a direct Fokker--Planck solver. Whether observed market-state
-distributions follow $F$ is a separate question, taken up as a template in
-Section~\ref{sec:diagnostics}.
-
-\section{Main results}
-\label{sec:results}
-
-We now specialize to the one-dimensional inventory model of
-Section~\ref{sec:mm}. Throughout we fix the quadratic specification
-\begin{equation}
-\label{eq:quad}
-V(x)=\frac{a}{2}x^2,
-\qquad
-W(x,y)=\frac{b}{2}(x-y)^2,
-\qquad
-a>0,\; b\ge 0,\; \beta>0,
-\end{equation}
-so that, after using
-$\frac12\iint W\,\rho\rho=\frac{b}{2}\mathrm{Var}(\rho)$,
-\begin{equation}
-\label{eq:Fquad}
+\label{eq:F}
 F(\rho)
 =
-\frac{a}{2}\int x^2\rho\,dx
+\frac a2\int x^2\rho(x)\,dx
 +
-\frac{b}{2}\mathrm{Var}(\rho)
+\frac b2\Var(\rho)
 +
-\beta\int\rho\log\rho\,dx.
+\beta\int\rho\log\rho\,dx,
+\qquad a>0,\; b\ge 0,\; \beta>0,
 \end{equation}
-All proofs are deferred to Appendix~\ref{app:proofs}.
+on $\Ptwo(\R)$. The interaction term is the energy of the kernel
+$W(z)=\frac b2 z^2$. Its gradient flow is a quadratic mean-field Langevin
+dynamics. The gradient-flow structure and the contraction are
+classical~\cite{McCann97,Malrieu03,CarrilloMcCannVillani03,CarrilloMcCannVillani06};
+the learning statements below use the explicit affine law.
 
-\subsection{Gradient-flow representation and its scope}
+\paragraph{Contributions.}
+\begin{enumerate}
+\item \emph{Exact decomposition ambiguity.} Proposition~\ref{prop:gauge}
+gives a potential--interaction gauge for general base energies. In the scalar
+quadratic model, centered populations generate an exact ridge
+$(a,b,\beta)\mapsto(a+h,b-h,\beta)$.
+\item \emph{Weak identification in two distinct directions.}
+Propositions~\ref{prop:weak-mean} and~\ref{prop:weak-var} give exact KL
+comparisons, nuisance-adjusted information, and Le Cam bounds. Small mean
+excitation weakens separation of confinement from interaction; near-equilibrium
+variance separately weakens recovery of dispersion dynamics.
+\item \emph{Excitation geometry and joint snapshot design.}
+Proposition~\ref{prop:geometry} records that $I_a^{\mathrm{eff}}$ is exactly
+quadratic in $\mu_0$, that $I_k^{\mathrm{eff}}$ is locally quadratic in
+$\Sigma_0-q$, and that $\lambda_{\min}$ of the profiled Fisher for
+$(a,b,\beta)$ collapses along the corresponding kernels. Corollary~\ref{cor:joint-design}
+states that maximizing information for $a$ alone can destroy identifiability
+of $(k,q)$.
+\item \emph{Intervention disagreement and recovery.} Ridge-equivalent models
+agree on centered training laws but disagree on a physically shifted
+population. Equal-budget experiments compare centered-only, shifted-only, and
+mixed initializations on an independent shifted test population. The centered
+fit is retained as a set, not reduced to an arbitrary optimizer output.
+\item \emph{Regular estimation away from the weak sets.} The exact moment map
+yields consistent and efficient estimators (Theorems~\ref{thm:est}
+and~\ref{thm:lam}) when the mean moves and the variance is not already at
+equilibrium.
+\item \emph{Supporting checks.} Interval procedures under weak variance
+excitation are diagnosed rather than treated as a main recovery method.
+Optimal-transport alignment is blind to uniform time rescaling
+(Proposition~\ref{prop:blind}). Forward-solver convergence and JKO structure
+are reported in the appendix.
+\end{enumerate}
 
-\begin{proposition}[Gradient-flow form of the inventory dynamics]
+One coordinate reading of $x$ is a dealer's signed inventory, with
+$\frac a2 x^2$ a position penalty~\cite{AvellanedaStoikov08,GueantLehalleFernandez2013}.
+This is a stylized myopic gradient flow, not a finite-horizon market-making
+game~\cite{LasryLions07,BaldacciBergaultPossamai2023}; see
+Appendix~\ref{app:background}. Nothing below is a test on observed inventories.
+
+\paragraph{Related work.}
+The variational form of the Fokker--Planck equation is due to~\citet{JKO98}. The
+metric theory is that of~\citet{AGS08}, following the Otto calculus~\cite{Otto01} and
+displacement convexity~\cite{McCann97}; surveys are~\cite{Villani03,Santambrogio15}.
+Contraction for McKean--Vlasov equations with convex confinement and interaction
+is developed by~\citet{CarrilloMcCannVillani03,CarrilloMcCannVillani06,Malrieu03}.
+JKOnet learns a potential energy from snapshots~\cite{Bunne22}. JKOnet*
+fits potential, interaction, and internal energy jointly and gives a unique
+linear-dictionary solution when a stacked Gram matrix is
+invertible~\cite{Terpin24}. iJKOnet treats temporally unpaired snapshots, with
+a recovery theorem for potential-only models~\cite{Persiianov26}. Identifiability
+for a single gradient-flow drift and unknown diffusion is characterized
+by~\citet{Guan26}; that result can identify a combined McKean--Vlasov drift
+without splitting confinement from interaction. Invisible drift directions and
+weak snapshot estimation for one drift field with known diffusion are studied
+by~\citet{NguyenMalysheva26}. Identifiability of interaction kernels with a
+known external potential and a full density path is developed
+by~\citet{LangLu22,LangLu23}. Trajectory-based inference for interacting
+particles is a different observation model~\cite{Sznitman91}. Our target is
+narrower: a component-decomposition gauge inside an interacting energy,
+statistical deterioration near that gauge, and population-level interventions
+that remove it in the quadratic model.
+
+The Gaussian affine law is a microscope, not the claim. The claim is that a
+method which jointly parametrizes a potential, an interaction, and an entropy
+from unpaired snapshots can reproduce an observed marginal flow while leaving
+the energy components unidentified. Non-interacting identifiability~\cite{Guan26}
+recovers one drift field; kernel recovery with a known
+potential~\cite{LangLu22,LangLu23} never has to split $V$ from $W$. The
+quadratic model makes the remaining obstruction, its two weak-identification
+directions, and the excitation that removes it completely explicit. The
+calculations that follow are elementary precisely because that is what an
+exact characterization requires.
+
+\paragraph{How to read the first twelve pages.}
+Section~\ref{sec:gauge} is the structural obstruction.
+Section~\ref{sec:learning} gives weak identification, the exact quadratic
+information collapse, joint snapshot design, Le Cam bounds, intervention, and
+regular estimation. Section~\ref{sec:numerics} checks each statement on
+independent snapshots: centered excess negative log likelihood $0$ and shifted
+holdout $W_2=0.329$; $I_a^{\mathrm{eff}}/\mu_0^2$ constant (fitted slope
+$2.000$) with $\lambda_{\min}(I)=6.99$ versus $0.031$ for equal three-time
+versus two-time allocations at budget $1200$; shifted-only test RMSE of
+$\hat a$ equal to $0.023$ and mean $W_2=0.011$, against a centered forecast
+envelope $(0.008,0.560)$. Appendix material is proofs, JKO, particles,
+interval diagnostics, and supporting snapshot figures.
+
+\section{Setting}
+\label{sec:setting}
+
+$\Ptwo(\R^d)$ is the set of Borel probabilities with finite second moment,
+metrized by
+$\Wtwo^2(\mu,\nu)=\inf_{\gamma\in\Pi(\mu,\nu)}\int|x-y|^2\,d\gamma$.
+Appendix~\ref{app:background} recalls dynamic optimal transport, Brenier maps,
+and the mean-field-game system. For a confining potential $V$, a symmetric
+interaction $W$, and $\beta>0$,
+\begin{equation}
+\label{eq:F-general}
+F(\rho)
+=
+\int V\rho\,dx
++
+\frac12\iint W(x-y)\rho(x)\rho(y)\,dx\,dy
++
+\beta\int\rho\log\rho\,dx,
+\end{equation}
+with first variation
+$\delta F/\delta\rho=V+W\ast\rho+\beta(\log\rho+1)$.
+A curve is a $W_2$ gradient flow of $F$ when it solves~\eqref{eq:gf}.
+Substituting the first variation produces the McKean--Vlasov equation
+$\partial_t\rho=\nabla\cdot(\rho\nabla V)+\nabla\cdot(\rho\nabla(W\ast\rho))+\beta\Delta\rho$,
+and the energy dissipates at rate
+$\frac{d}{dt}F(\rho_t)=-\int\rho_t\bigl|\nabla\delta F/\delta\rho\bigr|^2\,dx\le 0$.
+The JKO scheme with step $\tau>0$ is
+\begin{equation}
+\label{eq:jko}
+\rho_{k+1}
+\in
+\arg\min_{\rho\in\Ptwo}
+\Bigl\{
+F(\rho)+\frac1{2\tau}\Wtwo^2(\rho,\rho_k)
+\Bigr\}.
+\end{equation}
+
+Throughout, $d=1$ and
+\begin{equation}
+\label{eq:quad}
+V(x)=\frac a2 x^2,
+\qquad
+W(z)=\frac b2 z^2,
+\qquad
+a>0,\; b\ge 0,\; \beta>0.
+\end{equation}
+Then $\frac12\iint W\rho\rho=\frac b2\Var(\rho)$, and $F$ is~\eqref{eq:F}.
+We write $\theta=(a,b,\beta)$, $k=a+b$, and
+$q=\sigma_\infty^2=\beta/k$. The symbols $q$ and $\sigma_\infty^2$ are
+interchangeable; information calculations use $q$.
+Since $\nabla(W\ast\rho)(x)=b(x-\mu(\rho))$, the interaction is a penalty on
+cross-sectional dispersion.
+
+\section{A potential--interaction gauge}
+\label{sec:gauge}
+
+The central ambiguity is not restricted to a purely quadratic energy. For
+$m(\rho)=\int x\,d\rho(x)$ and a symmetric matrix $H$, define
+\begin{equation}
+\label{eq:gauge}
+V_H(x)=V(x)+\frac12x^\top Hx,
+\qquad
+W_H(z)=W(z)-\frac12z^\top Hz.
+\end{equation}
+
+\begin{proposition}[Quadratic transfer gauge]
+\label{prop:gauge}
+Write $F_{V,W,\beta}$ for~\eqref{eq:F-general} and let
+\[
+\operatorname{dom} F
+=
+\{\rho\in\Ptwo(\R^d):
+F_{V,W,\beta}(\rho),\;
+F_{V_H,W_H,\beta}(\rho)\in\mathbb R\}.
+\]
+The component integrals in~\eqref{eq:F-general} are required to be well-defined
+real numbers, not an indeterminate $\infty-\infty$. In particular
+$F(\rho)<\infty$ does not exclude $F(\rho)=-\infty$, and a finite second moment
+does not by itself make either energy real-valued.
+On this common real-valued domain the quadratic-transfer identity
+\begin{equation}
+\label{eq:gauge-energy}
+F_{V_H,W_H,\beta}(\rho)-F_{V,W,\beta}(\rho)
+=\frac12m(\rho)^\top Hm(\rho)
+\end{equation}
+holds, so both sides are real. If $V$ and $W$ are differentiable,
+$\nabla V$ and $\nabla V_H$ exist $\rho$-almost everywhere, and the
+interaction-gradient convolutions $\nabla W*\rho$ and $\nabla W_H*\rho$ exist
+as absolutely convergent integrals $\rho$-almost everywhere, the force identity
+\begin{equation}
+\label{eq:gauge-force}
+\nabla V_H+\nabla W_H*\rho-(\nabla V+\nabla W*\rho)
+=Hm(\rho)
+\end{equation}
+holds $\rho$-almost everywhere. Local integrability of the first variations
+does not by itself give those absolutely convergent convolutions. Suppose both
+transformed and untransformed energies belong to the declared admissible class,
+their equations exist and are unique from a common initial law, and a solution
+satisfies $Hm_t=0$ for $t\in[0,T]$. Then that path solves both equations, so
+all of its marginals coincide under the two decompositions.
+\end{proposition}
+
+This proposition is a sufficient ambiguity mechanism, not a classification of
+all ambiguities. Admissibility does real work: the transfer must preserve the
+growth, coercivity, convexity, or other hypotheses used for well-posedness. In
+the scalar quadratic model it becomes
+\begin{equation}
+\label{eq:scalar-ridge}
+(a,b,\beta)\longmapsto(a+h,b-h,\beta),
+\qquad a+h>0,\quad b-h\ge0.
+\end{equation}
+An even initial law remains centered under an even, unique flow, so the same
+transfer can be invisible on top of nonlinear even confinement and interaction
+terms. We do not claim that this exhausts nonlinear non-identifiability.
+
+\section{Exact structure}
+\label{sec:structure}
+
+Proofs are in Appendix~\ref{app:proofs}.
+
+\begin{proposition}[Gradient-flow form]
 \label{prop:gf}
-The $W_2$ gradient flow~\eqref{eq:gf} of the functional~\eqref{eq:Fquad} is the
-nonlinear Fokker--Planck (McKean--Vlasov) equation
+The $W_2$ gradient flow of~\eqref{eq:F} is
 \begin{equation}
 \label{eq:mv}
 \partial_t m_t
 =
-\partial_x\Bigl(m_t\bigl[(a+b)x-b\mu_t\bigr]\Bigr)
+\partial_x\bigl(m_t[kx-b\mu_t]\bigr)
 +
-\beta\partial_{xx}m_t,
+\beta\,\partial_{xx}m_t,
 \qquad
-\mu_t:=\int x\, m_t(x)\,dx,
+\mu_t=\int x\,m_t(dx).
 \end{equation}
-equivalently $\partial_t m_t=-\partial_x(v_t m_t)+\beta\partial_{xx}m_t$ with
-velocity $v_t(x)=-(a+b)x+b\mu_t$. If a market-making mean-field game of the
-form~\eqref{eq:mfg} is potential in the sense of Definition~\ref{def:potential}, with running and
-coupling costs chosen so that the equilibrium feedback induces the drift
-$-\nabla(V+W\ast m)$, then the forward Fokker--Planck equation of the game
-coincides with~\eqref{eq:mv} and the population of inventories is, exactly, the
-Wasserstein gradient flow of $F$.
+Equivalently, $\partial_t m_t=-\partial_x(v_t m_t)$ with Otto velocity
+\begin{equation}
+\label{eq:velocity}
+v_t(x)=-kx+b\mu_t-\beta\,\partial_x\log m_t(x).
+\end{equation}
+Within the class of finite-energy, absolutely continuous stationary
+solutions, the equilibria are the McKean--Vlasov--Gibbs measures
+$m_\infty\propto\exp\bigl(-\beta^{-1}(V+W\ast m_\infty)\bigr)$.
 \end{proposition}
 
-Proposition~\ref{prop:gf} is the precise content of Remark~\ref{rem:scope}: the
-variational picture is not a metaphor once the game is potential and the drift is
-the gradient of a first variation, and it is \emph{only} then. The quadratic
-specification~\eqref{eq:quad} is the simplest instance for which the hypotheses
-hold and the resulting flow can be solved in closed form.
-
-\subsection{Structural guarantees of the JKO scheme}
-
-\begin{theorem}[Well-posedness and structure preservation]
-\label{thm:jko}
-Let $F$ be as in~\eqref{eq:Fquad} and let $\rho_k\in\Ptwo(\R)$ with
-$F(\rho_k)<\infty$. For every $\tau>0$:
-\begin{enumerate}
-\item[(i)] the JKO step~\eqref{eq:jko-step} admits a unique minimizer
-$\rho_{k+1}\in\Ptwo(\R)$, which is absolutely continuous with a strictly positive
-density;
-\item[(ii)] total mass and nonnegativity are preserved exactly;
-\item[(iii)] the scheme dissipates energy at every step, with
-\begin{equation}
-\label{eq:edp}
-F(\rho_{k+1})+\frac{1}{2\tau}\Wtwo^2(\rho_{k+1},\rho_k)\le F(\rho_k);
-\end{equation}
-\item[(iv)] as $\tau\to 0$, the piecewise-constant interpolants of $(\rho_k)$
-converge uniformly in time with respect to $\Wtwo$ to the unique continuous
-gradient-flow solution of~\eqref{eq:mv} with initial datum $\rho_0$.
-(The interpolants themselves are discontinuous, so they are not elements of
-$C([0,T];\Ptwo(\R))$; the limit is.)
-\end{enumerate}
-\end{theorem}
-
-Properties (i)--(iii) are structural advantages absent from a naive explicit
-discretization of~\eqref{eq:mv}. They hold for the \emph{autonomous} functional.
-When $V$ is replaced by a time-dependent tilt $V_t$,~\eqref{eq:edp} need not
-hold for the unadjusted $F$; we return to this in
-Section~\ref{sec:exp-shock}.
-
-\subsection{Equilibria as McKean--Vlasov--Gibbs fixed points}
-
-\begin{proposition}[Equilibrium characterization]
-\label{prop:eq}
-A measure $m_\infty\in\Ptwo(\R)$ is a stationary point of the flow~\eqref{eq:gf}
-if and only if $\delta F/\delta\rho(m_\infty)$ is constant on
-$\mathrm{supp}(m_\infty)$; equivalently $m_\infty$ is a
-McKean--Vlasov--Gibbs fixed point,
-\begin{equation}
-\label{eq:gibbs}
-m_\infty(x)
-=
-\frac1Z\exp\Bigl(-\frac1\beta\bigl(V(x)+(W\ast m_\infty)(x)\bigr)\Bigr).
-\end{equation}
-\end{proposition}
-
-At equilibrium the inventory distribution is a Boltzmann--Gibbs density in the
-effective potential $V+W\ast m_\infty$, where the interaction shifts the
-landscape self-consistently.
-
-\subsection{The explicitly solvable Gaussian case}
-
-\begin{theorem}[Gaussian equilibrium and relaxation rates]
+\begin{theorem}[Equilibrium, exact law, and contraction]
 \label{thm:gauss}
-Under~\eqref{eq:quad} with $a>0$, $b\ge 0$, $\beta>0$:
+Let $m_0\in\Ptwo(\R)$ have mean $\mu_0$ and variance $\Sigma_0$.
 \begin{enumerate}
-\item[(i)] the flow~\eqref{eq:mv} has a unique equilibrium, the centered Gaussian
+\item[(i)] The unique equilibrium is $m_\infty=N(0,\sigma_\infty^2)$ with
+$\sigma_\infty^2=\beta/(a+b)$.
+\item[(ii)] The solution is the law of
 \begin{equation}
-\label{eq:gauss}
-m_\infty=N\bigl(0,\sigma_\infty^2\bigr),
-\qquad
-\sigma_\infty^2=\frac{\beta}{a+b};
+\label{eq:affine}
+X_t
+=
+\mu_0 e^{-at}
++
+e^{-kt}(X_0-\mu_0)
++
+\sqrt{\sigma_\infty^2(1-e^{-2kt})}\,Z,
 \end{equation}
-\item[(ii)] the mean $\mu_t$ and variance $\Sigma_t:=\mathrm{Var}(m_t)$ evolve in
-closed form,
+where $X_0\sim m_0$ and $Z\sim N(0,1)$ are independent. In particular
 \begin{equation}
 \label{eq:moments}
 \mu_t=\mu_0 e^{-at},
 \qquad
 \Sigma_t
 =
-\frac{\beta}{a+b}
-+
-\Bigl(\Sigma_0-\frac{\beta}{a+b}\Bigr)e^{-2(a+b)t},
+\sigma_\infty^2+(\Sigma_0-\sigma_\infty^2)e^{-2kt}.
 \end{equation}
-so the mean relaxes at rate $a$ and the variance at rate $2(a+b)$;
-\item[(iii)] $F$ is $a$-geodesically convex on $(\Ptwo(\R),\Wtwo)$, and
-consequently the flow is an $a$-contraction toward equilibrium,
-$\Wtwo(m_t,m_\infty)\le e^{-at}\Wtwo(m_0,m_\infty)$, while the JKO iterates
-contract as $\Wtwo(\rho_k,m_\infty)\le(1+a\tau)^{-k}\Wtwo(\rho_0,m_\infty)$.
+Whenever $m_0$ has a finite cumulant of order $j\ge 3$,
+$\kappa_j(m_t)=e^{-jkt}\kappa_j(m_0)$.
+\item[(iii)] $F$ is $a$-geodesically convex on $(\Ptwo(\R),\Wtwo)$, so
+$\Wtwo(m_t,m_\infty)\le e^{-at}\Wtwo(m_0,m_\infty)$, and the JKO iterates satisfy
+$\Wtwo(\rho_k,m_\infty)\le(1+a\tau)^{-k}\Wtwo(\rho_0,m_\infty)$.
+If $\mu_0\neq 0$, the rate $a$ is attained by the mean and is not improved by
+$b$.
 \end{enumerate}
 \end{theorem}
 
-Three financial readings follow immediately. First, the equilibrium dispersion
-$\sigma_\infty^2=\beta/(a+b)$ \emph{decreases} in the interaction strength $b$: a
-larger dispersion penalty compresses the population around flat inventory. We
-refer to $b$ as interaction strength or cross-sectional dispersion penalty, not
-as anti-crowding. Second, the mean inventory---the aggregate directional position
-of the dealer population---is the slowest mode, relaxing only at rate $a$ set by
-individual inventory aversion, whereas the dispersion equilibrates faster at rate
-$2(a+b)$. Third, a transient liquidity shock modeled as a piecewise-constant tilt
-$V_t(x)=\frac{a}{2}(x-c_t)^2$ with $c_t\equiv c$ on an interval of length
-$\Delta T$ has the \emph{exact} mean
-$\mu(t_0+\Delta T)=c+(\mu(t_0)-c)e^{-a\Delta T}$,
-hence $c(1-e^{-a\Delta T})$ if $\mu(t_0)=0$. This is not a quasi-static
-approximation.
+Energy dissipation of the proximal map~\eqref{eq:jko} and its convergence to
+this flow are recorded as Theorem~\ref{thm:jko} in
+Appendix~\ref{app:jko1d}.
 
-\section{Experiments}
-\label{sec:experiments}
+The equilibrium dispersion $\beta/(a+b)$ decreases in the interaction strength.
+The mean is the slow mode. A piecewise-constant tilt
+$V_t(x)=\frac a2(x-c)^2$ on an interval of length $\Delta T$ moves the mean by
+the exact rule $\mu(t_0+\Delta T)=c+(\mu(t_0)-c)e^{-a\Delta T}$. That identity is
+the liquidity-shock check in Appendix~\ref{app:experiments}. On a forcing
+interval the untilted energy need not decrease.
 
-We test the predictions of Section~\ref{sec:results} on the one-dimensional
-quadratic model and compare the JKO scheme against direct Fokker--Planck solvers.
-Unless stated otherwise we use $a=1$, $b=\tfrac12$, $\beta=\tfrac12$, for which
-Theorem~\ref{thm:gauss} gives $\sigma_\infty^2=\beta/(a+b)=1/3$, mean relaxation
-rate $a=1$, and variance relaxation rate $2(a+b)=3$.
+\section{Learning from snapshots}
+\label{sec:learning}
 
-These experiments verify the analytic laws and the JKO discretization (claims
-(i)--(ii) of the introduction). Market validity is left to the synthetic
-template in Section~\ref{sec:diagnostics}.
+Fix times $t_j=j\Delta$, $j=0,1,2$, with $\Delta>0$. At time $t_j$ we observe
+$N$ i.i.d.\ samples from $m_{t_j}$, independent across $j$. No sample is linked
+across time. Write $(\hat\mu_j,\hat\Sigma_j)$ for the sample mean and unbiased
+sample variance, and $(\mu_j,\Sigma_j)$ for the population values.
+Appendix experiments that evolve one cloud of interacting particles are a
+different design; see Remark~\ref{rem:particles}.
 
-\paragraph{Numerical methods.}
-The Eulerian solvers discretize~\eqref{eq:mv} on a uniform grid of the inventory
-axis $[-6,6]$ in conservative flux form with upwind advection, central diffusion,
-and reflecting (no-flux) boundaries; we use both explicit (forward Euler) and
-implicit (backward Euler) time stepping. The JKO solver works in the
-one-dimensional Lagrangian coordinate given by the quantile function
-$Q=F_\rho^{-1}$, in which $\Wtwo^2(\rho,\rho_k)=\int_0^1(Q-Q_k)^2\,du$ and
+\subsection{Identifiability}
+
+\begin{proposition}[Identifiability from the marginal flow]
+\label{prop:ident}
+Let $m^\theta$ solve~\eqref{eq:mv} with parameter $\theta$.
+\begin{enumerate}
+\item[(i)] If $\mu_0=0$, then $m^\theta_t$ depends on $\theta$ only through
+$(a+b,\beta)$.
+\item[(ii)] If $m_0=N(\mu_0,\beta/(a+b))$, then
+$m^\theta_t=N(\mu_0 e^{-at},\beta/(a+b))$ depends on $\theta$ only through
+$(a,\beta/(a+b))$.
+\item[(iii)] If $\mu_0\neq 0$ and $\Sigma_0\neq\beta/(a+b)$, the triple
+$(\mu_j,\Sigma_j)_{j=0,1,2}$ determines $\theta$ for every $\Delta>0$:
+\begin{equation}
+\label{eq:g}
+\begin{gathered}
+a=-\frac1\Delta\log\frac{\mu_1}{\mu_0},
+\qquad
+k=-\frac1{2\Delta}\log r,
+\qquad
+\sigma_\infty^2
+=
+\Sigma_0-\frac{\Sigma_1-\Sigma_0}{r-1},\\
+b=k-a,
+\qquad
+\beta=k\sigma_\infty^2,
+\end{gathered}
+\end{equation}
+where $r=(\Sigma_2-\Sigma_1)/(\Sigma_1-\Sigma_0)=e^{-2k\Delta}\in(0,1)$.
+\end{enumerate}
+\end{proposition}
+
+The two exclusions are sharp for moment data. A centered population feels
+$b(x-\mu_t)$ only as additional confinement, so snapshots taken far from
+equilibrium still cannot separate $a$ from $b$. A centered law therefore
+depends only on $(a+b,\beta)$, but need not identify both coordinates: a
+centered equilibrium Gaussian identifies only $q=\beta/(a+b)$. A Gaussian
+started at the equilibrium variance never moves its dispersion, so the
+variance path carries no information about $k$. If $\Sigma_0=\sigma_\infty^2$
+but $m_0$ is not Gaussian, Theorem~\ref{thm:gauss}(ii) identifies $k$ from a
+higher cumulant only when some finite, nonzero cumulant of order $j\ge 3$ is
+available. Any method that jointly parametrizes $V$, $W$, and $\beta$ from
+unpaired snapshots can therefore match the displayed centered marginal path
+while leaving the energy split unidentified. A moving mean is necessary to
+break the ridge, and is not automatically sufficient.
+
+\subsection{Weak identification}
+
+Exact non-identification is the endpoint of a statistical deterioration, but
+two mechanisms must be kept separate. Throughout this subsection the initial
+law is Gaussian,
 \[
-  F[Q]
-  =
-  \frac{a}{2}\int_0^1 Q^2\,du
-  +
-  \frac{b}{2}\mathrm{Var}[Q]
-  -
-  \beta\int_0^1 \log Q'(u)\,du.
+\rho_0=N(\mu_0,\Sigma_0),
 \]
-Each JKO step is a smooth convex program over nondecreasing $Q$, solved by
-L-BFGS. Mass and positivity are exact by construction. For higher-dimensional
-state one would instead use entropic/Sinkhorn proximal steps~\cite{PeyreCuturi19}
-or neural JKO parametrizations~\cite{JKOflow}; the 1D quantile scheme suffices
-for the present toy model (Appendix~\ref{app:jko1d}).
+snapshots are independent across times, and snapshot $j$ contains $N_j$
+independent observations. The displayed Kullback--Leibler formulas use these
+Gaussian marginals; they are not claimed for a non-Gaussian $m_0$. Write
+\[
+S_j=q+(\Sigma_0-q)e^{-2kt_j},\qquad k=a+b,\quad q=\beta/k.
+\]
+Admissible alternatives satisfy $a>0$, $k\ge a$, and $q>0$.
 
-\subsection{Inventory relaxation}
-\label{sec:exp-relax}
+\begin{proposition}[Weak mean excitation]
+\label{prop:weak-mean}
+Hold $(k,\beta,\Sigma_0)$ fixed and compare the admissible alternatives
+$a$ and $a+\delta$, with known common initial mean $\mu_0$. The laws remain
+Gaussian with a common variance path, so their exact
+Kullback--Leibler divergence is
+\begin{equation}
+\label{eq:mean-kl}
+K_{\mathrm{mean}}(\delta)
+=\frac12\sum_j
+\frac{N_j\mu_0^2
+\left(e^{-at_j}-e^{-(a+\delta)t_j}\right)^2}{S_j}.
+\end{equation}
+If $\mu_0$ is unknown, minimizing over the alternative initial mean gives
+\[
+\mu_0'=\mu_0
+\frac{\sum_jw_je^{-at_j}e^{-(a+\delta)t_j}}
+{\sum_jw_je^{-2(a+\delta)t_j}},
+\qquad w_j=N_j/S_j.
+\]
+The local efficient information after projecting out $\mu_0$ is
+\begin{equation}
+\label{eq:mean-info}
+I_a^{\mathrm{eff}}
+=\mu_0^2\sum_j
+\frac{N_je^{-2at_j}}{S_j}(t_j-\bar t)^2,
+\quad
+\bar t=
+\frac{\sum_jN_je^{-2at_j}t_j/S_j}
+{\sum_jN_je^{-2at_j}/S_j}.
+\end{equation}
+Consequently, under a fixed nondegenerate design,
+$I_a^{\mathrm{eff}}$ scales as $N\mu_0^2$.
+\end{proposition}
 
-We initialize the bimodal law
-$m_0=\tfrac12 N(-2,0.2^2)+\tfrac12 N(2,0.2^2)$ and evolve the implicit
-Fokker--Planck scheme to $T=4$ ($\Delta t=2\times 10^{-3}$, $N=481$ nodes).
-Figure~\ref{fig:exp01} shows the distribution contracting onto $N(0,1/3)$. The
-free energy decreases monotonically, with no energy-increasing steps, and the
-variance tracks $\Sigma_t=\tfrac13+(\Sigma_0-\tfrac13)e^{-3t}$. The terminal
-variance is $0.345$ against the theoretical $0.333$; the small excess is
-numerical diffusion of the Eulerian scheme. The Wasserstein distance to
-equilibrium falls from $\Wtwo(m_0,m_\infty)=1.55$ to $0.010$.
+Thus a fixed nonzero mean gives ordinary root-$N$ information,
+$\mu_{0,N}\asymp N^{-1/2}$ leaves bounded information, and $\mu_0=0$
+produces the exact ridge~\eqref{eq:scalar-ridge}. At least two distinct times
+are needed when the initial mean is unknown.
+
+\begin{proposition}[Weak variance excitation]
+\label{prop:weak-var}
+Hold $(a,\mu_0,\Sigma_0,q)$ fixed and compare alternatives $k$ and $k+\delta$,
+both required to remain admissible, so $k\ge a$ and $k+\delta\ge a$. Then the
+Gaussian means coincide, $b=k-a$, $\beta=kq$, and $\varepsilon=\Sigma_0-q$. The
+exact KL is
+\begin{equation}
+\label{eq:var-kl}
+K_{\mathrm{var}}(\delta)
+=\frac12\sum_jN_j
+\left[
+\frac{S_j(k)}{S_j(k+\delta)}
+-1-\log\frac{S_j(k)}{S_j(k+\delta)}
+\right].
+\end{equation}
+For nuisance parameters $(\Sigma_0,q)$, put $r_j=e^{-2kt_j}$ and write
+\[
+\langle u,v\rangle_S=\sum_j N_j u_j v_j/(2S_j^2).
+\]
+The efficient information is
+\begin{equation}
+\label{eq:var-info}
+I_k^{\mathrm{eff}}
+=\left\|
+(I-\Pi_{\operatorname{span}\{r,1-r\}})
+(-2\varepsilon\,tr)
+\right\|_S^2
+=
+\varepsilon^2 C(\varepsilon;k,q,\{t_j,N_j\}).
+\end{equation}
+The weights $S_j=q+\varepsilon e^{-2kt_j}$ depend on $\varepsilon$, so $C$ is not a
+universal constant. Under a design for which
+$\{r,1-r,-2tr\}$ has rank three in the $S$-inner product after sending
+$\varepsilon\to 0$, one has $C(\varepsilon)\to C(0)>0$. Three distinct times with
+positive allocations are sufficient for that rank. With only two distinct
+times and both $(\Sigma_0,q)$ unknown, $\{r,1-r\}$ already spans the
+two-dimensional variance tangent, so $I_k^{\mathrm{eff}}=0$ even away from
+equilibrium.
+\end{proposition}
+
+The candidate scaling $N(\Sigma_0-q)^2$ is therefore a local description after
+the design, variance scale, and nuisance geometry have been fixed. It is not a
+universal collapse coordinate.
+
+The two scalar formulas are the scores of the affine law. Because
+$\mu_t=\mu_0 e^{-at}$ one has $\partial_a\mu_t=-t\mu_0 e^{-at}$, so the mean
+score is linear in $\mu_0$ and the information is exactly quadratic in
+$\mu_0$. Because $\Sigma_t=q+\varepsilon e^{-2kt}$ one has
+$\partial_k\Sigma_t=-2t\varepsilon e^{-2kt}$, so the variance score is linear
+in $\varepsilon$. The profiled matrix for $(a,b,\beta)$ inherits those
+kernels.
+
+\begin{proposition}[Excitation geometry]
+\label{prop:geometry}
+Assume the Gaussian snapshot experiment of this subsection, with unknown
+nuisances $(\mu_0,\Sigma_0)$. Write $\varepsilon=\Sigma_0-q$ and let
+$I(\mu_0,\varepsilon)$ be the Fisher information for $(a,b,\beta)$ after
+projecting out $(\mu_0,\Sigma_0)$.
+\begin{enumerate}
+\item[(i)] The path $(S_j)$ does not depend on $\mu_0$. Hence
+\begin{equation}
+\label{eq:ia-factor}
+I_a^{\mathrm{eff}}
+=\mu_0^2 I_a^{(1)}(a,k,q,\Sigma_0,\{t_j,N_j\})
+\end{equation}
+exactly, for every $\mu_0$, where $I_a^{(1)}$ is~\eqref{eq:mean-info} at
+$\mu_0=1$. The factor $I_a^{(1)}$ is positive whenever at least two distinct
+times have positive allocation.
+\item[(ii)] $I_k^{\mathrm{eff}}=\varepsilon^2 C(\varepsilon)$ with
+$C(\varepsilon)\to C(0)$. Three distinct times with positive allocation give
+$C(0)>0$. Two distinct times give $C(\varepsilon)=0$ for every $\varepsilon$.
+\item[(iii)] At fixed $\varepsilon\neq 0$,
+\[
+\lambda_{\min}\bigl(I(\mu_0,\varepsilon)\bigr)
+=\frac{\mu_0^2}{2}\,I_a^{(1)}+O(\mu_0^4)
+\qquad(\mu_0\to 0),
+\]
+and the associated eigenspace approaches the gauge $(1,-1,0)$ in
+$(a,b,\beta)$. At fixed $\mu_0\neq 0$,
+$\lambda_{\min}(I(\mu_0,\varepsilon))=\Theta(\varepsilon^2)$ as
+$\varepsilon\to 0$, and the associated direction approaches $(0,1,q)$.
+\item[(iv)] Local identifiability of $(a,b,\beta)$ therefore requires both
+excitations, with enough distinct times to profile the nuisances. Vanishing
+mean excitation removes information about $a$; vanishing variance excitation
+removes information about $k$, hence about $b=k-a$ and $\beta=kq$.
+\end{enumerate}
+\end{proposition}
+
+The $O(\mu_0^4)$ remainder is ordinary perturbation of a simple kernel of the
+variance block: $I(\mu_0,\varepsilon)=I_{\mathrm{var}}(\varepsilon)+\mu_0^2 B$
+exactly, with $B$ independent of $\mu_0$, and
+$u^\top B u=I_a^{(1)}/2$ for the unit gauge $u=(1,-1,0)/\sqrt 2$.
+
+\begin{corollary}[Joint snapshot design]
+\label{cor:joint-design}
+A design that maximizes $I_a^{\mathrm{eff}}$ need not maximize
+$\lambda_{\min}(I)$. Any two-time experiment with unknown $(\Sigma_0,q)$ has
+$I_k^{\mathrm{eff}}=0$, hence $\lambda_{\min}(I)=0$, even if
+$I_a^{\mathrm{eff}}$ is large. Informative designs occupy an interior time
+scale and must be scored jointly.
+\end{corollary}
+
+\begin{corollary}[Finite-sample two-point difficulty]
+\label{cor:lecam}
+Let $K$ be a fully specified Kullback--Leibler divergence:~\eqref{eq:mean-kl}
+with known common $\mu_0$, or~\eqref{eq:var-kl}. Both experiments are pairs of
+product Gaussian laws with no remaining nuisance. For every estimator of the
+varied rate,
+\[
+\max_iP_i\!\left(|\widehat\theta-\theta_i|\ge|\delta|/2\right)
+\ge\frac12\left(1-\sqrt{K/2}\right),
+\qquad
+\max_i\mathbb E_i(\widehat\theta-\theta_i)^2
+\ge\frac{\delta^2}{8}\left(1-\sqrt{K/2}\right).
+\]
+Allowing different nuisance initial means yields the minimized KL and a
+potentially larger two-point risk lower bound, provided both alternatives
+belong to the declared parameter space.
+\end{corollary}
+
+These are information-theoretic statements about the observation experiment.
+They do not imply that every estimator attains the bound, nor do failures of a
+particular clipped or constrained estimator strengthen the impossibility
+claim.
+
+\subsection{Intervention forecasting}
+
+The same ridge that is invisible on a centered training population produces
+distinct forecasts after a physical shift of the initial law. Recentering
+stored observations is not that experiment: the energy is fixed and a new
+population is initialized.
+
+\begin{proposition}[Shifted intervention]
+\label{prop:intervention}
+Let $\theta_h=(a+h,b-h,\beta)$ with $k=a+b$ and $q=\beta/k$ fixed, and write
+$m^{(h)}$ for the law of~\eqref{eq:affine} under $\theta_h$.
+\begin{enumerate}
+\item[(i)] If $\mu_0=0$, then $m^{(h)}_t=m^{(0)}_t$ for every admissible $h$
+and every $t\ge 0$.
+\item[(ii)] If a physical intervention translates a centered $Y_0$ by $s$, then
+\[
+W_2\bigl(m^{(h)}_t,m^{(h')}_t\bigr)
+=
+|s|\,\bigl|e^{-(a+h)t}-e^{-(a+h')t}\bigr|.
+\]
+\item[(iii)] If the initial means of several populations are known design
+inputs and the populations share a common variance path, the Gaussian
+mean-block information for $a$ is proportional to $\sum_r N_r\mu_{0,r}^2$.
+Under equal per-time budgets, a mixed design with means $\{-s,0,s\}$ therefore
+has two thirds of the mean-block information of a shifted-only design with
+mean $s$.
+\end{enumerate}
+\end{proposition}
+
+A likelihood fit on centered data is a set along~\eqref{eq:scalar-ridge}, not
+a recovered decomposition. Test-population data are not used to select a
+ridge member. Shifted training can restore point recovery of $a$ within this
+family; it does not prove complete nonlinear identifiability of arbitrary
+$V$ and $W$.
+
+\subsection{Estimation}
+
+Let $\hat\theta_N$ be the plug-in estimator obtained by substituting
+$(\hat\mu_j,\hat\Sigma_j)$ into~\eqref{eq:g}, on the event
+$\{\hat\mu_1/\hat\mu_0>0,\ \hat r\in(0,1)\}$.
+
+\begin{theorem}[Consistency and asymptotic normality]
+\label{thm:est}
+Assume $\int x^4\,m_0(dx)<\infty$, $\mu_0\neq 0$, and
+$\Sigma_0\neq\beta/(a+b)$. Then the defining event has probability tending to
+one, $\hat\theta_N\to\theta$ almost surely, and
+$\sqrt N(\hat\theta_N-\theta)\Rightarrow N(0,J\Gamma J^\top)$.
+Here $\Gamma$ is block diagonal across snapshots, the $(j)$-th block is the
+covariance of $(X,(X-\mu_j)^2)$ under $m_{t_j}$,
+\[
+\begin{pmatrix}
+\Sigma_j & \kappa_{3,j}\\
+\kappa_{3,j} & \kappa_{4,j}+2\Sigma_j^2
+\end{pmatrix},
+\]
+and $J$ is the Jacobian of~\eqref{eq:g}. The asymptotic variance of
+$\sqrt N(\hat a-a)$ is
+\begin{equation}
+\label{eq:avar}
+v_a(\Delta)
+=
+\frac1{\Delta^2}
+\Bigl(
+\frac{\Sigma_0}{\mu_0^2}
++
+\frac{\Sigma_1}{\mu_0^2 e^{-2a\Delta}}
+\Bigr).
+\end{equation}
+\end{theorem}
+
+The estimator of $a$ uses only the means. Close snapshots have little rate
+signal, through the factor $\Delta^{-2}$. Distant snapshots see a mean that has
+already decayed, through $e^{2a\Delta}$. The conditions on $\Sigma_0$ are
+required for $b$ and $\beta$.
+
+\begin{corollary}[Spacing when the variance does not move]
+\label{cor:spacing}
+If $\Sigma_0=\Sigma_1$, then
+$v_a(\Delta)=\Sigma_0(1+e^{2a\Delta})/(\mu_0^2\Delta^2)$, with unique minimizer
+$\Delta^\star=x^\star/a$. The constant $x^\star\approx 1.109$ is the unique
+positive solution of $x=1+e^{-2x}$.
+\end{corollary}
+
+When the variance does move,~\eqref{eq:avar} is minimized numerically from a
+pilot estimate of $(a,k,\Sigma_0)$.
+
+\paragraph{Efficiency for Gaussian initial laws.}
+Consider snapshots at $t_0<\cdots<t_J$, $J\ge 1$, and the parametric model in
+which $m_0=N(\mu_0,\Sigma_0)$ with $\mu_0\neq 0$ and $\Sigma_0$ unknown.
+Let $\omega_j=\mu_{t_j}^2/\Sigma_{t_j}$, and let $\bar t_\omega$ and
+\[
+\Var_\omega(t)
+=
+\frac{\sum_j\omega_j(t_j-\bar t_\omega)^2}{\sum_j\omega_j}
+\]
+be the $\omega$-weighted mean and variance of the snapshot times.
+
+\begin{theorem}[Local asymptotic minimax bound]
+\label{thm:lam}
+Assume $b>0$ and at least two distinct observation times. In this Gaussian
+model the Fisher information is block diagonal between
+$(\mu_0,a)$ and $(\Sigma_0,k,q)$, equivalently
+$(\Sigma_0,a+b,\sigma_\infty^2)$. For every estimator sequence
+$T_N$ of $a$ and every bowl-shaped loss $\ell$,
+\[
+\lim_{c\to\infty}
+\liminf_{N\to\infty}
+\sup_{\|h\|\le c}
+\mathbb E_{\vartheta+h/\sqrt N}
+\,\ell\bigl(\sqrt N(T_N-a_{\vartheta+h/\sqrt N})\bigr)
+\ \ge\
+\mathbb E\,\ell(Z),
+\]
+where $Z\sim N\bigl(0,\ 1/(\sum_j\omega_j\Var_\omega(t))\bigr)$ and
+$\vartheta=(\mu_0,a,\Sigma_0,a+b,\sigma_\infty^2)$.
+The bound is attained by weighted least squares of $\mu_0 e^{-at}$ on
+$(\hat\mu_j)$, with weights $N/\hat\Sigma_j$. For two snapshots at spacing
+$\Delta$ the bound equals $v_a(\Delta)$, so the plug-in $\hat a$ is
+asymptotically efficient. For three snapshots and $\Sigma_0\neq\sigma_\infty^2$,
+the plug-in estimators of $a+b$, $\sigma_\infty^2$, and $\beta=k\sigma_\infty^2$
+are asymptotically efficient.
+At $b=0$, ordinary two-sided LAN neighborhoods leave the admissible set
+$b\ge 0$, so the interior efficiency statement does not apply.
+\end{theorem}
+
+The rate $a$ is learned from the decay of the mean, and only from snapshots in
+which that mean is large relative to the spread. The pair $(a+b,\beta)$ is
+learned from the relaxation of the variance. Section~\ref{sec:numerics} checks
+the bound on two and three snapshots.
+
+\begin{remark}[One interacting system]
+\label{rem:particles}
+If every snapshot is the empirical measure of a single system of $N$ particles
+started i.i.d.\ from $m_0$ with a finite fourth moment, write
+$\widetilde B_t=N^{-1/2}\sum_{i=1}^N B^i_t$ for the standard Brownian motion
+obtained from the driving noises. The linear interaction gives the exact
+empirical-mean SDE
+\[
+d\bar X_t=-a\bar X_t\,dt+\sqrt{\frac{2\beta}{N}}\,d\widetilde B_t.
+\]
+Hence $\bar X_t-\mu_t=O_p(N^{-1/2})$ uniformly on compact time intervals, by
+the explicit Ornstein--Uhlenbeck representation of that linear SDE. Centered
+deviations $Y^i_t=X^i_t-\bar X_t$ satisfy
+\[
+dY^i_t=-k Y^i_t\,dt+\sqrt{2\beta}\Bigl(dB^i_t-\frac1{\sqrt N}\,d\widetilde B_t\Bigr).
+\]
+The empirical second moment of $(Y^i_t)$ is likewise $O_p(N^{-1/2})$ about
+$\Sigma_t$ at each $t$. This rate is for the linear particle system; it is not
+quoted from a generic propagation-of-chaos bound. A plug-in estimator of
+$\theta$ remains $\sqrt N$-consistent on this design when $\mu_0\neq 0$ and
+$\Sigma_0\neq\sigma_\infty^2$, but dependence across particles and across times
+changes the asymptotic covariance, and Theorems~\ref{thm:est}
+and~\ref{thm:lam} do not apply as stated. The particle experiments in
+Appendix~\ref{app:experiments} use that design.
+\end{remark}
+
+Alignment of the monotone rearrangement with the Wasserstein velocity is an
+interpretability check after the time scale is fixed; it is stated as
+Proposition~\ref{prop:blind} in Appendix~\ref{app:alignment}.
+
+\section{Numerical verification}
+\label{sec:numerics}
+
+Unless noted, $a=1$, $b=\tfrac12$, $\beta=\tfrac12$, so $q=\sigma_\infty^2=1/3$,
+the mean rate is $1$, and the variance rate is $3$. Laws in this section are
+independent snapshots from~\eqref{eq:affine}. Solver, relaxation, alignment,
+and particle-system checks are in Appendix~\ref{app:experiments}; they are
+not identification evidence. Throughout we keep three statements distinct:
+population-level impossibility, finite-information lower bounds, and the
+behavior of a particular estimator or interval.
+
+\paragraph{Well-excited estimation.}
+The initial law
+$m_0=\tfrac12 N(-1.2,0.2^2)+\tfrac12 N(2.8,0.2^2)$ has $\mu_0=0.8$ and
+$\Sigma_0=4.04$. Three independent snapshots are drawn from~\eqref{eq:affine}
+and passed to the plug-in map of Theorem~\ref{thm:est}, over $2000$
+replications. On the valid plug-in event of Theorem~\ref{thm:est},
+root-mean-square error of $(\hat a,\hat b,\hat\beta)$ decays as
+$N^{-1/2}$ (Figure~\ref{fig:est}a). At this spacing the valid-event rate is
+$100\%$ across the simulated replications at every displayed $N$, so the RMSE
+is not a selected subset. At $N=2000$, the Monte Carlo value of
+$N\Var(\hat a)$ tracks~\eqref{eq:avar}: $46.4$ ($\mathrm{SE}\,1.5$) against
+$45.0$ at $\Delta=0.5$,
+and $8.05$ ($\mathrm{SE}\,0.25$) against $8.03$ at $\Delta=1.5$ (Figure~\ref{fig:est}b). Because the
+variance falls from $4.04$ toward $1/3$, the minimizer of~\eqref{eq:avar} on
+this path is $\Delta\approx 1.62$, rather than the constant-variance value
+$1.109$.
+
+For the Gaussian efficiency check, $m_0=N(0.8,1.5)$ and $\Delta=0.75$, again
+with $N=2000$ and $2000$ replications. The two-snapshot plug-in has
+$N\Var(\hat a)=9.53$ ($\mathrm{SE}\,0.30$) against the bound $9.85$. Weighted least squares on the
+means at $0,\Delta,2\Delta$ has $4.44$ ($\mathrm{SE}\,0.14$) against the bound $4.63$.
+The corresponding RMSE and spacing plots are Figure~\ref{fig:est} in
+Appendix~\ref{app:experiments}.
+
+\paragraph{Centered ambiguity and shifted disagreement.}
+Independent centered Gaussian snapshots at $t\in\{0.25,0.5,1\}$, with
+$N=400$ per time and $500$ replications, are evaluated along the admissible
+ridge~\eqref{eq:scalar-ridge}. Population means and variances agree to machine
+precision, and the sampled centered excess negative log likelihood is exactly
+zero: every candidate density is the same (Figure~\ref{fig:ambiguity}a). An
+independent physically shifted population with initial mean $0.8$ is not
+recentered data. On that holdout the candidates disagree, with Monte Carlo
+excess loss matching the population Gaussian KL and final-time pairwise
+$W_2$ reaching $0.329$ (Figure~\ref{fig:ambiguity}b). This is exact
+observational equivalence on one population, not an estimator failure.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{exp01_relaxation.png}
-\caption{Non-Gaussian relaxation of a bimodal inventory law onto $N(0,1/3)$.
-Energy decreases monotonically; variance tracks the closed-form ODE. This is a
-numerical check of Theorem~\ref{thm:gauss}, not a market observation.}
-\label{fig:exp01}
+\includegraphics[width=\linewidth,height=1.75in,keepaspectratio]{exp12_ambiguity_intervention.png}
+\caption{Ridge-equivalent models on independent snapshots.
+(a)~Centered training laws and sampled losses coincide.
+(b)~A physically shifted holdout distinguishes the same candidates.
+The displayed $W_2$ is the exact Gaussian distance to the true shifted law.}
+\label{fig:ambiguity}
 \end{figure}
 
-The paper bimodal is mean-zero, so $\mu_t=\mu_0 e^{-at}$ is nearly vacuous there.
-A shifted bimodal companion,
-$\tfrac12 N(-1.2,0.2^2)+\tfrac12 N(2.8,0.2^2)$, yields a mean-law RMSE of
-$0.0019$ against $\mu_0 e^{-at}$.
+\paragraph{Two weak-identification mechanisms.}
+Mean alternatives vary $a$ at fixed $(k,\beta)$; variance alternatives vary
+$k$ at fixed $q$. Independent Gaussian snapshots at $t\in\{0,0.5,1\}$ and
+$1000$ replications collapse across $N\in\{100,400,1600\}$ when plotted against
+nuisance-adjusted information (Figure~\ref{fig:weak}). Exact two-point KL is
+kept separate from efficient information. At the weakest displayed signals the
+direct plug-in is invalid on $89.6\%$ of mean fits and $93.3\%$ of variance
+fits. Unconditional bounded losses remain large there. The ratio of mean
+information to $N\mu_0^2$ is constant at $0.237$ for this design; the ratio of
+variance information to $N(\Sigma_0-q)^2$ ranges from $0.0140$ to $0.0528$, so
+the latter is only a candidate scaling. These are information-theoretic
+statements. They are not proved by the failure of a clipped ratio.
+Figure~\ref{fig:weak} records the corresponding panels.
 
-\subsection{Liquidity shock}
-\label{sec:exp-shock}
+\paragraph{Excitation geometry and snapshot design.}
+Proposition~\ref{prop:geometry} is an exact local expansion, not a fitted
+exponent. On times $\{0,0.5,1\}$ with $N=400$ per time, the ratio
+$I_a^{\mathrm{eff}}/\mu_0^2$ is constant, and a log--log fit of
+$I_a^{\mathrm{eff}}$ recovers slope $2.000$. Fitted slopes for
+$\lambda_{\min}(I)$ are $1.96$ $(\mu_0\to 0)$ and $1.92$
+$(\varepsilon\to 0)$, the $O(\mu_0^4)$ and $C(\varepsilon)-C(0)$ corrections
+visible on a finite grid (Figure~\ref{fig:scaling}a,b). RMSE of $\hat a$
+tracks mean excitation and stays small as $\varepsilon\to 0$
+(Figure~\ref{fig:scaling}c), as required by
+Proposition~\ref{prop:geometry}(iv): the lost parameter is $k$, not $a$. The phase diagram at this fixed budget is singular on both axes
+$\mu_0=0$ and $\Sigma_0=q$, and recovery of $(a,b,\beta)$ rises only when
+both excitations are large (Figure~\ref{fig:phase}).
 
-Starting from equilibrium, we apply a piecewise-constant tilt
-$V_t(x)=\frac{a}{2}(x-c_t)^2$ with $c_t=2$ on $t\in[2,4)$ and $c_t=0$
-otherwise. On each interval the mean ODE $\dot\mu=-a(\mu-c)$ is exact, so
-$\mu(4)=2(1-e^{-2})\approx 1.729$. The implicit scheme reaches $1.720$
-(absolute error $0.009$; path RMSE $0.006$) and then decays toward zero at
-rate $a$ (Figure~\ref{fig:exp02}). A sweep over amplitudes
-$c\in\{1,2,3\}$ and durations $\Delta T\in\{0.5,1,2\}$ has mean absolute error
-$0.009$ against $c(1-e^{-a\Delta T})$.
+Snapshot timing is non-monotonic. For two snapshots at $0$ and $\Delta$, with
+moving variance, $I_a^{\mathrm{eff}}$ peaks at $\Delta\approx 1.41$ (value
+$69.0$), against $1.25$ at $\Delta=0.12$. The frozen-variance minimizer of
+$v_a(\Delta)$ is $\Delta^\star=1.109$, matching Corollary~\ref{cor:spacing}.
+At equal total budget $N_{\mathrm{tot}}=1200$, an equal three-time allocation
+has $\lambda_{\min}(I)=6.99$, while a two-time design raises
+$I_a^{\mathrm{eff}}$ from $60.8$ to $87.3$ but drops $\lambda_{\min}$ to
+$0.031$ because $I_k^{\mathrm{eff}}\approx 0$
+(Corollary~\ref{cor:joint-design}). More information about one parameter can
+mean less identifiability of the model. Finite-grid plots of the expansions
+are Figures~\ref{fig:scaling}--\ref{fig:design}.
 
-Two energies must be distinguished. The baseline functional $\mathcal{F}_0$,
-centered at zero, is not a Lyapunov function on the forcing window: it increased
-on every forced step and had zero energy-increasing steps after the tilt was
-removed. The instantaneous tilted energy $\mathcal{F}_{c_t}$ jumps when $c$
-switches (the functional itself changes) and then dissipates on the subsequent
-constant-$c$ interval. Autonomous dissipation (Theorem~\ref{thm:jko}) is not
-claimed across the switching event.
+\paragraph{Equal-budget recovery after shifted training.}
+Three designs receive the same total number of observations at every time:
+centered-only (mean $0$), shifted-only (mean $0.8$), and mixed (means
+$-0.8,0,0.8$). Initial means are known experimental inputs; the common
+$\Sigma_0$ is unknown and profiled in every arm. Evaluation uses one
+independent test population with mean $1.2$, excluded from every fit. The
+scientific constraints are $a>0$, $k\ge a$, and $q>0$. Compact optimizer
+limits are recorded separately from genuine contacts with $b=0$.
+
+The mixed design has two thirds of the shifted-only mean-block information
+about $a$ (Proposition~\ref{prop:intervention}(iii)) and is not presumed to
+win. The centered fit is a likelihood set along $a\in(0,\hat k]$, profiled
+over the fitted $(k,q,\Sigma_0)$. The displayed envelope uses the compact
+grid $[0.05,\min(\hat k,2.5)]$, so it is not automatically the full
+scientific ridge, and mixes ridge variation with Monte Carlo uncertainty in
+$(k,q,\Sigma_0)$. Test data are never used to pick a ridge member.
+
+With $180$ replications and $4800$ samples per time, the centered forecast
+envelope of exact Gaussian $W_2$ against the true test law remains
+$(0.008,0.560)$ in the time-averaged mean and reaches $0.846$ at the last test
+time. Shifted-only recovers $a$ with RMSE $0.023$ and mean $W_2$ $0.011$; mixed
+has RMSE $0.029$ and mean $W_2$ $0.013$ (Figure~\ref{fig:recovery}). Sampled
+held-out NLL is reported separately from that population $W_2$. Profile
+likelihood sets for $a$ after shifted or mixed training have coverage
+$0.972$ ($\mathrm{SE}\,0.012$) and $0.961$ ($\mathrm{SE}\,0.014$) at this
+budget, with mean hull widths $0.038$ and $0.058$. Those coverages are
+compatible with a nominal $95\%$ level and are not declared calibrated from a
+single cell. The comparison is an excitation and allocation tradeoff, not a
+claim that mixing populations is automatically better.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{exp02_shock.png}
-\caption{Piecewise-constant liquidity shock. The mean tracks the exact ODE
-$\mu=c+(\mu_0-c)e^{-a\Delta t}$ on each interval. Baseline $\mathcal{F}_0$ rises
-during the tilt; instantaneous $\mathcal{F}_{c_t}$ jumps at switches and then
-falls. Panel (d): amplitude/duration sweep versus $c(1-e^{-a\Delta T})$.}
-\label{fig:exp02}
+\includegraphics[width=\linewidth,height=1.85in,keepaspectratio]{exp14_shifted_training_recovery.png}
+\caption{Equal-budget training designs and an independent shifted test
+population. The centered arm is a forecast envelope across its ridge, not a
+point estimator. Exact Gaussian $W_2$ and sampled test NLL are separate
+metrics. Mixed training has two thirds of the shifted-only mean-block
+information.}
+\label{fig:recovery}
 \end{figure}
 
-\subsection{Interaction-strength sweep}
-\label{sec:exp-sweep}
+Supporting estimation, weak-identification, geometry, interval, and alignment
+plots are in Appendix~\ref{app:experiments}.
 
-We vary the interaction $b$ over $[0,3]$ and also sweep $a$ and $\beta$,
-starting from $N(1,1)$ so that the mean law is identifiable. Numerical
-equilibrium variance decreases in $b$ and tracks $\beta/(a+b)$, with a maximum
-absolute error of $0.021$ on the $b$-sweep (a coarser grid than
-Section~\ref{sec:exp-relax}). Fitted mean rates recover $a$ with MAE $0.029$
-(Figure~\ref{fig:exp03}). We emphasize the comparative static: larger $b$ is a
-cross-sectional \emph{dispersion penalty} that compresses inventories, not a
-penalty on dealers holding similar positions.
+\FloatBarrier
+
+\section{Discussion}
+\label{sec:discussion}
+
+Centered snapshots can identify a population law while leaving the
+confinement--interaction split unresolved. That is an exact gauge, not a
+finite-sample artifact. Near the gauge, identification is controlled by two
+independent excitation directions, and the corresponding Fisher information
+vanishes quadratically (Proposition~\ref{prop:geometry}). A small mean
+destroys information about $a$; a variance near equilibrium destroys
+information about $k$, hence about $b$ and $\beta$. Snapshot timing is
+non-monotonic, and a design that maximizes information for one parameter can
+erase identifiability of the model (Corollary~\ref{cor:joint-design}).
+Physically shifted populations make the same ridge visible in forecasts, and
+putting those shifted populations into training restores point recovery of
+$a$ under equal budgets. Mixing several means is not automatically better
+than a single shifted population: with known means and a common variance path
+the mean-block information is proportional to $\sum_r N_r\mu_{0,r}^2$.
+
+The numerical program is built to keep those statements from collapsing.
+Centered fits are reported as sets. Forecast error on a shifted test
+population is split into exact Gaussian $W_2$ and sampled NLL. Profile and
+bootstrap intervals are diagnosed by regime; they are not declared calibrated
+when coverage is produced by full-domain sets or by under-dispersed
+resampling. Alignment remains a local interpretability check after the time
+scale is fixed.
+
+The results use quadratic $V$ and $W$, independent snapshots, and one
+dimension. Recovery guarantees are for that scalar model. The general transfer
+$H$ is a sufficient ambiguity under admissibility, well-posedness, uniqueness,
+and $Hm_t=0$; it is not a classification of all interacting-energy gauges. A
+shifted initialization reveals this gauge. It does not identify arbitrary
+nonlinear $V$ and $W$. Whether a general convex interaction is identified by
+the motion of its mean, or requires a richer excitation of the law, is open.
+Whether an observed cross-sectional distribution
+is usefully described by descent of~\eqref{eq:F} is open. A general
+market-making game is not this gradient flow.
+
+\paragraph{Limitations.}
+The closed form~\eqref{eq:affine} is special to quadratic confinement and
+interaction. Interval constructions use compact numerical bounds that are not
+scientific parameter boundaries. The minimax bound is for independent Gaussian
+snapshots; particle systems from a single interacting cloud have a different
+asymptotic covariance. Forward-solver comparisons, including quantile JKO, are
+appendix checks of structure preservation. An official JKOnet* linear solver
+run is reported in the appendix; its pairing, test split, and single-cloud
+mixture encoding are not the exact-likelihood intervention experiment, so it
+is not used as a recovery baseline.
+
+\section*{AI disclosure}
+A coding assistant was used to draft and edit manuscript source, propose
+proof outlines for the Fisher expansions, implement numerical checks, and
+compile \LaTeX. The authors reviewed every mathematical claim against the
+proofs and every numerical report against the result files, and remain
+responsible for correctness, originality, and attribution.
+
+\bibliography{references}
+
+
+
+\appendix
+
+\section{Background}
+\label{app:background}
+
+\paragraph{Dynamic optimal transport.}
+By~\citet{BenamouBrenier00},
+\[
+\Wtwo^2(\mu,\nu)
+=
+\inf\Bigl\{
+\int_0^1\int |v_t|^2\rho_t\,dx\,dt:
+\partial_t\rho_t+\nabla\cdot(\rho_t v_t)=0,\ 
+\rho_0=\mu,\ \rho_1=\nu
+\Bigr\}.
+\]
+This is Otto's formal Riemannian structure~\cite{Otto01}: tangent vectors are
+velocity potentials with $\partial_t\rho=-\nabla\cdot(\rho\nabla\phi)$ and metric
+$\int\nabla\phi_1\cdot\nabla\phi_2\,\rho\,dx$. Equation~\eqref{eq:gf} is steepest
+descent of $F$ in that metric.
+
+\paragraph{Brenier maps.}
+If $\mu$ is absolutely continuous, the optimal coupling of $\mu$ and $\nu$ is
+induced by a $\mu$-a.e.\ unique map $T=\nabla\phi$ with $\phi$
+convex~\cite{Brenier91,Villani03}. For the JKO step, the forward map from
+$\rho_k$ to $\rho_{k+1}$ satisfies
+\begin{equation}
+\label{eq:brenier-disc}
+T_k(x)
+=
+x-\tau\nabla\frac{\delta F}{\delta\rho}(\rho_{k+1})\bigl(T_k(x)\bigr).
+\end{equation}
+Evaluating the gradient at $x$ instead of at $T_k(x)$ changes the right-hand
+side by $o(\tau)$ when the first variation is Lipschitz. In one dimension, $T$
+is the monotone rearrangement of the two marginals, which is the map used in
+the alignment statistic.
+
+\paragraph{Mean-field games.}
+A representative agent controls $dX_t=\alpha_t\,dt+\sqrt{2\nu}\,dB_t$. In
+equilibrium,
+\[
+-\partial_t u-\nu\Delta u+H(x,\nabla u)=f(x,m),
+\qquad
+\partial_t m-\nu\Delta m-\nabla\cdot\bigl(m\,D_p H(x,\nabla u)\bigr)=0,
+\]
+with $m(0)=m_0$ and $u(T)=g(x,m(T))$~\cite{LasryLions07,CardaliaguetNotes}.
+The Hamiltonian in this display does not depend on $m$; the coupling sits in
+$f$ and $g$. The game is potential when $f=\delta G/\delta m$ and the terminal
+cost is a variation of the same kind.
+
+\begin{remark}[Myopic gradient flow versus a market-making game]
+\label{rem:myopic}
+That variational structure does not force the forward drift to equal
+$-\nabla\delta F/\delta m$. A finite-horizon mean-field game has a backward
+Hamilton--Jacobi--Bellman equation whose spatial gradient determines the
+equilibrium control. The autonomous Wasserstein gradient flow~\eqref{eq:gf}
+is instead a myopic descent of a free energy, with no terminal condition and
+no continuation value. Reading $x$ as signed inventory is a coordinate
+convention, not an empirical claim about dealer data, and nothing in the
+paper is a test of~\citet{AvellanedaStoikov08,GueantLehalleFernandez2013} on
+observed inventories.
+\end{remark}
+
+\section{The one-dimensional JKO scheme}
+\label{app:jko1d}
+
+\begin{theorem}[Proximal map]
+\label{thm:jko}
+For every $\tau>0$ and every $\rho_0\in\Ptwo(\R)$ of finite energy, the
+JKO step~\eqref{eq:jko} admits a unique minimizer. That minimizer is
+absolutely continuous and positive almost everywhere, has unit mass, and
+dissipates energy:
+\begin{equation}
+\label{eq:edp}
+F(\rho_{k+1})+\frac1{2\tau}\Wtwo^2(\rho_{k+1},\rho_k)
+\le
+F(\rho_k).
+\end{equation}
+The piecewise-constant interpolants $\bar\rho_\tau$ converge to the unique
+gradient flow of $F$ as $\tau\to 0$, uniformly on compact time intervals.
+\end{theorem}
+
+The optimal coupling is the monotone rearrangement, so
+$\Wtwo^2(\rho,\rho_k)=\int_0^1(Q_\rho-Q_{\rho_k})^2\,du$ with $Q_\rho$ the
+quantile function of $\rho$. Using $\rho(Q(u))=1/Q'(u)$ and writing $Q=Q_\rho$,
+\[
+F[Q]
+=
+\frac a2\int_0^1 Q^2\,du
++
+\frac b2\Bigl(\int_0^1 Q^2-\Bigl(\int_0^1 Q\Bigr)^2\Bigr)
+-
+\beta\int_0^1\log Q'(u)\,du.
+\]
+Each JKO step minimizes $F[Q]+\frac1{2\tau}\int_0^1(Q-Q_k)^2\,du$ over
+nondecreasing $Q$. Monotonicity is parametrized by strictly positive increments
+on $M$ nodes and the program is solved by L-BFGS, with function tolerance
+$10^{-12}$. Normalization and $Q'>0$ then hold by construction. An energy increment
+is counted in the experiments only when it exceeds $10^{-9}$, so a reported
+count of zero is a statement about the optimizer at that tolerance.
+Theorem~\ref{thm:jko} is exact for the continuous proximal map.
+In higher dimensions the rearrangement is unavailable; entropic proximal
+steps~\cite{PeyreCuturi19} and neural parametrizations~\cite{JKOflow,Bunne22}
+are the usual substitutes.
+
+\section{Alignment as a post-identification check}
+\label{app:alignment}
+
+Between consecutive marginals, let $T$ be the monotone rearrangement,
+$u_{\mathrm{obs}}=T-\mathrm{id}$, and $v^\theta$ the velocity~\eqref{eq:velocity}.
+The alignment statistic is the cosine of $u_{\mathrm{obs}}$ and $v^\theta$ in
+$L^2(m_t)$. The vector $u_{\mathrm{obs}}$ displaces the two marginals. It is
+the trajectory of a labeled agent only when identities are observed. In one
+dimension the residual $1-\cos^2$ is unexplained displacement of that
+rearrangement. It is not a rotational residual.
+
+\begin{proposition}[Scale invariance]
+\label{prop:blind}
+For every $c>0$, $m^{c\theta}_t=m^\theta_{ct}$ and, at a fixed density,
+$v^{c\theta}=c\,v^\theta$. Thus $\cos_{c\theta}=\cos_\theta$ for any observed
+pair of marginals, while $\mu_{t+\Delta}/\mu_t=e^{-ca\Delta}$ whenever
+$\mu_0\neq 0$.
+\end{proposition}
+
+The cosine is therefore an interpretability check after the time scale has been
+fixed by the moment map~\eqref{eq:g}. It is a local comparison: $v^\theta$ is an
+instantaneous tangent, while $T-\mathrm{id}$ is a finite displacement, so the
+cosine moves with the window $\Delta$. The best-fit scale
+$\hat\lambda=\langle u_{\mathrm{obs}},v^\theta\rangle/\|v^\theta\|^2$ absorbs
+the window and, on the true flow, tracks $\Delta$. Numerical checks are in
+Appendix~\ref{app:experiments}.
+
+\section{Proofs}
+\label{app:proofs}
+
+Throughout, $\mu(\rho)=\int x\,\rho$ and
+$\Sigma(\rho)=\int x^2\rho-\mu(\rho)^2$.
+
+\subsection{Proof of Proposition~\ref{prop:gauge}}
+
+The quadratic correction terms $\frac12\mathbb E[X^\top HX]$ and
+$\frac14\mathbb E[(X-Y)^\top H(X-Y)]$ are finite for every
+$\rho\in\Ptwo(\R^d)$. They do not make $F_{V,W,\beta}(\rho)$ real-valued when $V$
+or $W$ has superquadratic growth, nor do they exclude $F=-\infty$. Restrict to
+$\operatorname{dom} F$, so both energies lie in $\mathbb R$ and their difference
+is defined. Let $X,Y$ be i.i.d.\ with law $\rho$, and write $m=\int x\,\rho$.
+Because $H$ is symmetric,
+\[
+\mathbb E[(X-Y)^\top H(X-Y)]
+=
+2\mathbb E[X^\top HX]-2m^\top Hm.
+\]
+The potential correction contributes $\frac12\mathbb E[X^\top HX]$, while the
+interaction correction contributes
+$-\frac14\mathbb E[(X-Y)^\top H(X-Y)]$. Their sum is $\frac12 m^\top Hm$,
+which is~\eqref{eq:gauge-energy}.
+
+If $V$ and $W$ are differentiable, $\nabla V$ and $\nabla V_H$ exist
+$\rho$-almost everywhere, and $\nabla W*\rho$, $\nabla W_H*\rho$ exist as
+absolutely convergent integrals $\rho$-almost everywhere, the same identities
+may be differentiated:
+\[
+\nabla\Bigl(\tfrac12 x^\top Hx\Bigr)=Hx,
+\qquad
+\nabla\Bigl(-\tfrac12 |\cdot|_H^2\Bigr)\ast\rho=-H(x-m),
+\]
+so the force difference is $Hm$ at $\rho$-almost every point, which
+is~\eqref{eq:gauge-force}. Local integrability of the first variations does
+not produce those convolutions. If a solution
+of the untransformed equation satisfies $Hm_t=0$ on $[0,T]$, the two
+McKean--Vlasov operators agree along that path. Existence, uniqueness, and
+admissibility of both energies then identify the paths, hence all marginals.
+The argument does not classify other gauges, and it does not remove the
+requirement that both transformed components remain in the declared class.\qed
+
+\subsection{Proof of Proposition~\ref{prop:gf}}
+
+For $W(z)=\frac b2 z^2$,
+$(W\ast\rho)(x)=\frac b2\bigl(x^2-2x\mu(\rho)+\int y^2\rho\bigr)$, so
+$\nabla(W\ast\rho)=b(x-\mu)$ and $\nabla V(x)=ax$. Hence
+\[
+\nabla\frac{\delta F}{\delta\rho}
+=
+kx-b\mu(\rho)+\beta\,\nabla\log\rho.
+\]
+Substitution into~\eqref{eq:gf} gives~\eqref{eq:mv}. The continuity-equation
+velocity is minus that gradient, which is~\eqref{eq:velocity}.
+
+If $m_\infty$ is absolutely continuous with finite energy and
+$\nabla\cdot\bigl(m_\infty\nabla\delta F/\delta\rho(m_\infty)\bigr)=0$,
+testing against the first variation and integrating by parts yields
+$\nabla\delta F/\delta\rho=0$ at $m_\infty$-almost every point, so the first
+variation is constant on the support. Solving
+$V+W\ast m_\infty+\beta(\log m_\infty+1)=\mathrm{const}$ gives the Gibbs form.
+A constant first variation makes the velocity vanish. The argument does not
+classify every weak stationary measure of finite second moment.\qed
+
+\subsection{Proof of Theorem~\ref{thm:gauss}}
+
+\emph{(ii).}
+The mean $\mu_t$ is deterministic, so~\eqref{eq:mv} is the forward equation of
+$dX_t=(-kX_t+b\mu_t)\,dt+\sqrt{2\beta}\,dB_t$. Taking expectations gives
+$\dot\mu_t=-a\mu_t$, hence $\mu_t=\mu_0 e^{-at}$. Variation of constants gives
+\[
+X_t
+=
+e^{-kt}X_0
++
+b\mu_0\int_0^t e^{-k(t-s)}e^{-as}\,ds
++
+\sqrt{2\beta}\int_0^t e^{-k(t-s)}\,dB_s,
+\]
+and $b\int_0^t e^{-k(t-s)-as}\,ds=e^{-at}-e^{-kt}$, including the case $b=0$.
+The stochastic integral is centered Gaussian with variance
+$\frac{\beta}{k}(1-e^{-2kt})$, independent of $X_0$, which is~\eqref{eq:affine}.
+The variance law follows by computing $\Var(X_t)$. The equation has a unique
+solution in $C([0,\infty);\Ptwo)$, so this law is the gradient flow.
+If $m_0$ has a finite cumulant of order $j\ge 3$, the Gaussian convolution
+does not change that cumulant, and scaling $X_0-\mu_0$ by $e^{-kt}$ multiplies
+it by $e^{-jkt}$.
+
+\emph{(i).}
+Sending $t\to\infty$ in~\eqref{eq:affine} yields $N(0,\sigma_\infty^2)$ from
+every $m_0$. The same density is the Gibbs fixed point: the effective potential
+$\frac k2 x^2-b\mu_\infty x$ is quadratic, and self-consistency forces
+$\mu_\infty=0$ because $a>0$.
+
+\emph{(iii).}
+By McCann's criterion~\cite{McCann97}, $\beta\int\rho\log\rho$ is geodesically
+convex, $\int V\rho$ is $a$-convex because $V''=a$, and the interaction energy
+of a convex kernel is geodesically convex. Thus $F$ is $a$-convex. Contraction
+of the flow and of the JKO resolvent follows from~\cite[Thm.~11.2.1 and
+Thm.~4.0.4]{AGS08}. Since $\Wtwo(m_t,m_\infty)\ge|\mu_t|=e^{-at}|\mu_0|$, the
+rate $a$ is sharp whenever $\mu_0\neq 0$, and it does not improve when $b$
+increases. If $\mu_0=0$ the same $a$-convexity bound remains valid, but it is
+no longer witnessed by the mean.\qed
+
+\subsection{Proof of Theorem~\ref{thm:jko}}
+
+The Boltzmann entropy is infinite on measures that are not absolutely
+continuous, while the proximal objective is finite at $\rho_k$, so every
+minimizer is absolutely continuous. The entropy is bounded from below by the
+second moment, $V$ and $W$ are nonnegative, and
+$\frac1{2\tau}\Wtwo^2(\cdot,\rho_k)$ has tight sublevel sets. A minimizer
+therefore exists by the direct method~\cite{AGS08}. The functional $F$ is
+$a$-convex and $\frac1{2\tau}\Wtwo^2(\cdot,\rho_k)$ is $\frac1\tau$-convex along
+generalized geodesics with base $\rho_k$, so the objective is strictly convex
+along those curves and the minimizer is unique~\cite[Ch.~4]{AGS08}.
+
+The Euler--Lagrange equation of the proximal step reads
+\begin{equation}
+\label{eq:el}
+\log\rho_{k+1}
++
+\beta^{-1}\bigl(V+W\ast\rho_{k+1}+\phi_k/\tau\bigr)
+=
+\mathrm{const}
+\end{equation}
+almost everywhere, where $\phi_k$ is a Kantorovich potential for the quadratic
+cost from $\rho_{k+1}$ back to $\rho_k$, normalized so that the backward map is
+$\mathrm{id}-\nabla\phi_k$~\cite{JKO98,Santambrogio15}. The logarithmic entropy
+forces this density to be positive almost everywhere.
+
+Mass and nonnegativity hold because the constraint set is $\Ptwo(\R)$.
+Comparing the objective at $\rho_{k+1}$ with its value at $\rho_k$ gives
+\eqref{eq:edp}. Summing it yields
+$\sum_k\Wtwo^2(\rho_{k+1},\rho_k)\le 2\tau\bigl(F(\rho_0)-\inf F\bigr)$, and the
+piecewise-constant interpolants satisfy
+$\Wtwo(\bar\rho_\tau(t),\bar\rho_\tau(s))\le C\sqrt{|t-s|+\tau}$.
+They are discontinuous, so they are not elements of $C([0,T];\Ptwo)$. The
+refined Ascoli theorem in $(\Ptwo,\Wtwo)$ produces a subsequence converging
+uniformly on compact time intervals to a continuous curve, which $a$-convexity
+identifies as the unique gradient flow~\cite[Thm.~11.1.6 and
+Thm.~4.0.4]{AGS08}. Uniqueness of the limit gives convergence of the whole
+family.\qed
+
+\subsection{Proof of Proposition~\ref{prop:ident}}
+
+If $\mu_0=0$, then~\eqref{eq:affine} depends on $\theta$ only through $(k,\beta)$.
+If $X_0\sim N(\mu_0,\sigma_\infty^2)$, the scaled initial deviation and the
+added Gaussian recombine into $N(0,\sigma_\infty^2)$, so
+$X_t\sim N(\mu_0 e^{-at},\sigma_\infty^2)$.
+
+For (iii), $\mu_1/\mu_0=e^{-a\Delta}$ determines $a$ when $\mu_0\neq 0$. The
+variance increments are
+$\Sigma_{j+1}-\Sigma_j=(\Sigma_0-\sigma_\infty^2)e^{-2kj\Delta}(e^{-2k\Delta}-1)$.
+They are nonzero for $j=0,1$ when $\Sigma_0\neq\sigma_\infty^2$, so their ratio
+equals $e^{-2k\Delta}$ and determines $k$. Then
+$\Sigma_1-\Sigma_0=(\Sigma_0-\sigma_\infty^2)(r-1)$ determines
+$\sigma_\infty^2$, and $b=k-a$, $\beta=k\sigma_\infty^2$.\qed
+
+\subsection{Proof of Proposition~\ref{prop:weak-mean}}
+
+The alternatives $(a,k,\beta)$ and $(a+\delta,k,\beta)$ have the same variance
+path $S_j$. Independent Gaussian snapshots therefore differ only in their
+means. The KL between $N(\mu_0 e^{-at_j},S_j)$ and
+$N(\mu_0 e^{-(a+\delta)t_j},S_j)$, summed over $N_j$ observations, is
+\eqref{eq:mean-kl}. If $\mu_0$ is unknown, the alternative mean that minimizes
+that quadratic in the weights $w_j=N_j/S_j$ is the displayed weighted
+projection, and the local expansion of the minimized KL is
+$\delta^2 I_a^{\mathrm{eff}}/2+o(\delta^2\mu_0^2)$ with~\eqref{eq:mean-info}. Under
+a fixed nondegenerate design the time sums are positive constants, so
+$I_a^{\mathrm{eff}}$ scales as $N\mu_0^2$.\qed
+
+\subsection{Proof of Proposition~\ref{prop:weak-var}}
+
+Holding $(a,\mu_0,\Sigma_0,q)$ fixed, the alternatives differ only in their
+variance paths, and both are required to remain admissible. The KL between
+Gaussians $N(\mu_0 e^{-at_j},S_j(k))$ and
+$N(\mu_0 e^{-at_j},S_j(k+\delta))$ is~\eqref{eq:var-kl}. In the coordinates
+$(\Sigma_0,k,q)$ the variance derivatives are $r$, $-2\varepsilon\, t r$, and
+$1-r$. The Gaussian variance information inner product is
+$\langle u,v\rangle_S$, whose weights $1/S_j^2$ depend on $\varepsilon$ through
+$S_j=q+\varepsilon r_j$. The efficient score for $k$ is the residual of
+$\partial_k S$ after $S$-orthogonal projection onto
+$\operatorname{span}\{r,1-r\}$, which is~\eqref{eq:var-info}. Factoring
+$\varepsilon$ from the residual produces
+$I_k^{\mathrm{eff}}=\varepsilon^2 C(\varepsilon;k,q,\{t_j,N_j\})$. As $\varepsilon\to 0$,
+$S_j\to q$ uniformly on a finite time grid, so the inner product converges to
+the constant-weight product at $S\equiv q$. If
+$\{r,1-r,-2tr\}$ has rank three in that limit, the residual of $-2tr$ stays
+bounded away from zero and $C(\varepsilon)\to C(0)>0$. Three distinct times with
+positive $N_j$ suffice. Two distinct times make the variance tangent
+two-dimensional, so the projection of any third direction onto
+$\operatorname{span}\{r,1-r\}$ is exact and $I_k^{\mathrm{eff}}=0$ even if
+$\varepsilon\neq 0$.\qed
+
+\subsection{Proof of Corollary~\ref{cor:lecam}}
+
+Let $P_0,P_1$ be the two fully specified product experiments, with exact KL
+$K$. Pinsker's inequality yields $\mathrm{TV}(P_0,P_1)\le\sqrt{K/2}$.
+Le Cam's two-point method then bounds the maximum risk of any estimator of
+the varied coordinate: the tests that try to decide which of two points
+separated by $|\delta|$ is true have error at least
+$\frac12\bigl(1-\mathrm{TV}\bigr)$, and the displayed quadratic-risk bound
+follows by restricting the loss to the event that the estimator is at least
+$|\delta|/2$ from the nearer point~\cite[Theorem~2.2]{Tsybakov09}.
+If the alternative may use a different admissible initial mean, replace $K$
+by the minimized KL. That value is no larger, so $1-\sqrt{K/2}$ is no smaller,
+and the numerical lower bound can only increase.\qed
+
+\subsection{Proof of Proposition~\ref{prop:intervention}}
+
+The affine representation~\eqref{eq:affine} with parameters $\theta_h$ is
+\[
+X_t^{(h)}
+=
+\mu_0 e^{-(a+h)t}
++
+e^{-kt}(X_0-\mu_0)
++
+\sqrt{q(1-e^{-2kt})}\,Z.
+\]
+If $\mu_0=0$, the law does not depend on $h$. If $X_0=s+Y_0$ with $Y_0$
+centered, the two laws at a fixed $t$ are translations of a common centered
+law, so their $W_2$ distance is the absolute mean gap, which is~(ii). For
+known design means and a common variance path, the Gaussian mean-block
+information for $a$ is additive across independent populations and equals
+\[
+\sum_r\mu_{0,r}^2\sum_j\frac{N_{r,j}t_j^2 e^{-2at_j}}{S_j}.
+\]
+With identical times, allocations per time, and variance paths, this factors
+as $\bigl(\sum_r N_r\mu_{0,r}^2\bigr)$ times a common time sum, which is~(iii).
+Under the stated mixed versus shifted-only allocation the ratio of those
+mean-square excitations is $2/3$.\qed
+
+\subsection{Proof of Theorem~\ref{thm:est}}
+
+By~\eqref{eq:affine}, each $m_{t_j}$ has a finite fourth moment. Let $\hat\eta$
+be the vector of sample means and unbiased sample variances at the three times,
+and let $\eta$ be its expectation. The strong law gives $\hat\eta\to\eta$ almost
+surely. Independence of the snapshots and the central limit theorem give
+$\sqrt N(\hat\eta-\eta)\Rightarrow N(0,\Gamma)$, with the stated blocks: the
+covariance of $X$ and $(X-\mu)^2$ is the third cumulant, and
+$\Var((X-\mu)^2)=\kappa_4+2\Sigma^2$~\cite[Ch.~3]{vanderVaart98}.
+The map $g$ in~\eqref{eq:g} is $C^1$ on
+$\{\mu_1/\mu_0>0,\ \Sigma_1\neq\Sigma_0,\ r\in(0,1)\}$, and $\eta$ lies in that
+set by Proposition~\ref{prop:ident}(iii). Thus
+$\Pr(\hat\eta\in U)\to 1$, $g(\hat\eta)\to\theta$ almost surely, and the delta
+method gives the limiting normal law with Jacobian $J=\nabla g(\eta)$.
+
+For~\eqref{eq:avar}, $\hat a=-\Delta^{-1}\log(\hat\mu_1/\hat\mu_0)$ depends only
+on two independent sample means, with variances $\Sigma_0/N$ and $\Sigma_1/N$.
+The gradient in $(\mu_0,\mu_1)$ is $\Delta^{-1}(1/\mu_0,-1/\mu_1)$, and
+$\mu_1=\mu_0 e^{-a\Delta}$.\qed
+
+\subsection{Proof of Theorem~\ref{thm:lam}}
+
+Snapshot $j$ consists of $N$ i.i.d.\ draws from
+$N(\mu_j,\Sigma_j)$, with $\mu_j=\mu_0 e^{-at_j}$ and $\Sigma_j$ as
+in~\eqref{eq:moments}. The model is differentiable in quadratic mean, so the
+product experiment is locally asymptotically normal with information
+$N\sum_j I_j(\vartheta)$~\cite[Ch.~7]{vanderVaart98}. For a univariate normal,
+the information in the mean and variance parameters is
+$\mathrm{diag}(1/v,\ 1/(2v^2))$. The chain rule gives
+\[
+I_j
+=
+\frac{\nabla\mu_j\nabla\mu_j^\top}{\Sigma_j}
++
+\frac{\nabla\Sigma_j\nabla\Sigma_j^\top}{2\Sigma_j^2}.
+\]
+The mean depends only on $(\mu_0,a)$ and the variance only on
+$(\Sigma_0,a+b,\sigma_\infty^2)$, so the two blocks do not interact.
+
+On the mean block,
+$\nabla_{(\mu_0,a)}\mu_j=\mu_j(1/\mu_0,-t_j)$.
+The information equals $\sum_j\omega_j(1/\mu_0,-t_j)^{\otimes 2}$. Its Schur
+complement in the $a$-coordinate is $\sum_j\omega_j\Var_\omega(t)$, which is
+positive when $\mu_0\neq 0$ and at least two distinct times are observed.
+The local asymptotic minimax theorem~\cite[Thm.~8.11]{vanderVaart98}, applied
+to the submodel with variance parameters known, gives the stated bound at an
+interior point $b>0$. The
+supremum over local alternatives in the full model is at least as large.
+
+Weighted least squares with weights $N/\hat\Sigma_j$ is a $\sqrt N$-consistent
+M-estimator with consistent weights. Its asymptotic covariance is the inverse
+of $\sum_j\omega_j(1/\mu_0,-t_j)^{\otimes 2}$~\cite[Ch.~5]{vanderVaart98}, so it
+attains the bound. For two snapshots the model in the two means is just
+identified, least squares reproduces $\hat a$, and
+$\sum_j\omega_j\Var_\omega(t)=\Delta^2\omega_0\omega_1/(\omega_0+\omega_1)$
+inverts to $v_a(\Delta)$.
+
+On the variance block with three snapshots and $\Sigma_0\neq\sigma_\infty^2$,
+the map $(\Sigma_0,a+b,\sigma_\infty^2)\mapsto(\Sigma_0,\Sigma_1,\Sigma_2)$ is a
+local diffeomorphism by the same algebra as Proposition~\ref{prop:ident}(iii).
+For Gaussian samples the sample variances are asymptotically efficient, with
+variance $2\Sigma_j^2$ for the $\sqrt N$-scaled error, and efficiency is
+preserved by a smooth reparametrization. Block diagonality means that unknown
+mean parameters do not inflate this limit. Therefore the plug-in estimators of
+$a+b$ and $\sigma_\infty^2$ are efficient~\cite[Thm.~8.8]{vanderVaart98}, and so
+is $\beta=(a+b)\sigma_\infty^2$.\qed
+
+\subsection{Proof of Corollary~\ref{cor:spacing}}
+
+If $\Sigma_1=\Sigma_0$, then
+$v_a(\Delta)=\frac{\Sigma_0}{\mu_0^2}a^2 f(a\Delta)$ with
+$f(x)=(1+e^{2x})/x^2$. The function $f$ tends to infinity at $0$ and at
+infinity, and
+$f'(x)=2x^{-3}(xe^{2x}-1-e^{2x})$ vanishes if and only if $x=1+e^{-2x}$.
+The two sides of that equation are strictly monotone in opposite directions, so
+there is a unique positive root. It is the global minimizer, and
+$x^\star\approx 1.109$.\qed
+
+\subsection{Proof of Proposition~\ref{prop:geometry}}
+
+Mean and variance of a Gaussian snapshot are independent, the mean path
+depends on $(a,\mu_0)$ only, and the variance path $(S_j)$ does not depend on
+$\mu_0$. The mean score for $a$ is $\partial_a\mu_j=-t_j\mu_0 e^{-at_j}$, hence
+linear in $\mu_0$. Profiling $\mu_0$ is an orthogonal projection in the
+weighted $\ell^2$ space with weights $N_j/S_j$. Those weights are independent
+of $\mu_0$, so the projected score remains linear in $\mu_0$ and
+$I_a^{\mathrm{eff}}=\mu_0^2 I_a^{(1)}$ with $I_a^{(1)}$ equal
+to~\eqref{eq:mean-info} at $\mu_0=1$. The factor is positive whenever the
+weighted observation times are not all equal, i.e.\ whenever at least two
+distinct times have positive allocation. This is~(i). Claim~(ii) is
+Proposition~\ref{prop:weak-var}.
+
+For~(iii), write $\theta=(a,b,\beta)$. After projecting out
+$(\mu_0,\Sigma_0)$, the Fisher matrix splits as
+$I(\mu_0,\varepsilon)=I_{\mathrm{var}}(\varepsilon)+\mu_0^2 B$, where $B$ is
+the mean-block contribution in $(a,b,\beta)$ coordinates. By~(i), $B$ does
+not depend on $\mu_0$. The mean path is independent of $(b,\beta)$, so $B$
+is supported on the $a$-coordinate and $B_{aa}=I_a^{(1)}$.
+
+Variance statistics identify $(k,q)$ after $\Sigma_0$ is profiled. The map
+$(a,b,\beta)\mapsto(k,q)=(a+b,\beta/(a+b))$ has kernel spanned by
+$(1,-1,0)$. Thus, whenever $\varepsilon\neq 0$ and three distinct times make
+$(k,q)$ locally identified, $I_{\mathrm{var}}(\varepsilon)$ has a simple
+kernel along the unit gauge $u=(1,-1,0)/\sqrt{2}$. Along that direction,
+$u^\top B u=I_a^{(1)}/2$. Ordinary perturbation of a simple eigenvalue of a
+symmetric matrix then yields
+\[
+\lambda_{\min}\bigl(I(\mu_0,\varepsilon)\bigr)
+=
+\frac{\mu_0^2}{2}I_a^{(1)}+O(\mu_0^4)
+\qquad(\mu_0\to 0),
+\]
+and the associated eigenspace approaches $u$.
+
+At fixed $\mu_0\neq 0$, the mean block locally identifies $a$. As
+$\varepsilon\to 0$, Proposition~\ref{prop:weak-var} gives
+$I_k^{\mathrm{eff}}=\varepsilon^2 C(\varepsilon)=\Theta(\varepsilon^2)$ under
+three distinct times. The remaining null of the variance block at
+$\varepsilon=0$ is the $k$-direction at fixed $q$, namely $(0,1,q)$ in
+$(a,b,\beta)$. Hence $\lambda_{\min}=\Theta(\varepsilon^2)$ and the associated
+direction approaches $(0,1,q)$. Claim~(iv) is the combination of~(i)--(iii).\qed
+
+\subsection{Proof of Corollary~\ref{cor:joint-design}}
+
+By Proposition~\ref{prop:geometry}(ii), any two-time experiment with unknown
+$(\Sigma_0,q)$ has $I_k^{\mathrm{eff}}=0$ for every $\varepsilon$. The
+profiled matrix $I(\mu_0,\varepsilon)$ is then singular, so
+$\lambda_{\min}(I)=0$ even if $I_a^{\mathrm{eff}}$ is large. A two-time
+allocation that maximizes $I_a^{\mathrm{eff}}$ therefore need not maximize
+$\lambda_{\min}$. An informative design must occupy an interior time scale
+and be scored jointly.\qed
+
+\subsection{Proof of Proposition~\ref{prop:blind}}
+
+Replacing $\theta$ by $c\theta$ multiplies the right-hand side of~\eqref{eq:mv}
+by $c$. Thus $t\mapsto m^\theta_{ct}$ solves the equation for $c\theta$ with the
+same initial datum, and uniqueness gives $m^{c\theta}_t=m^\theta_{ct}$. At a fixed
+density the velocity~\eqref{eq:velocity} is linear in $\theta$, so
+$v^{c\theta}=c\,v^\theta$, and the cosine is invariant under positive scaling of
+either argument. The mean ratio is~\eqref{eq:moments}.\qed
+
+\section{Further experiments}
+\label{app:experiments}
+
+\paragraph{Independent-snapshot figures.}
+The following plots belong to Section~\ref{sec:numerics}. They illustrate
+theorems already stated in the main text; fitted slopes are finite-grid
+manifestations of those expansions, not estimates of unknown exponents.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{exp03_parameter_sweep.png}
-\caption{Comparative statics in the interaction strength $b$: equilibrium
-variance decreases as $b$ increases and tracks $\beta/(a+b)$.}
-\label{fig:exp03}
+\includegraphics[width=\linewidth]{exp11_snapshot_estimation.png}
+\caption{Plug-in estimation from three independent snapshots of the exact law.
+(a)~RMSE against samples per snapshot at $\Delta=0.5$, restricted to the valid
+event of Theorem~\ref{thm:est}, with an $N^{-1/2}$
+guide matched to $\hat a$ at the rightmost point. The valid-event rate is
+$100\%$ across the simulated replications at every displayed $N$.
+(b)~Formula~\eqref{eq:avar} and $N\widehat\Var(\hat a)$ at $N=2000$. The dotted
+line is the minimizer $\Delta\approx 1.62$ for this initial variance.}
+\label{fig:est}
 \end{figure}
-
-\subsection{Solver comparison: structure}
-\label{sec:exp-solvers}
-
-The Eulerian scheme is a conservative flux discretization with no-flux
-boundaries, so the \emph{signed} integral $\int m\,dx$ is a different object from
-positivity. Explicit Euler below the diffusive CFL $\Delta t\le(\Delta x)^2/(2\beta)$
-conserves signed mass to $\sim 10^{-15}$ and stays nonnegative on this test.
-Above CFL it develops large negative mass and diverges; signed mass then explodes
-with the instability, which is not a failure of the flux form while the scheme is
-stable. Implicit Euler remains stable above CFL, conserves signed mass to
-$\sim 10^{-15}$, and stayed positive here. Quantile JKO has no explicit CFL,
-exact normalization and monotonicity by construction, and zero energy-increasing
-steps on the autonomous problem (Figure~\ref{fig:exp04},
-Table~\ref{tab:solvers}).
-
-\begin{table}[t]
-\centering
-\caption{Structural comparison on the autonomous bimodal flow, $T=1.5$.
-``CFL'' is the explicit diffusive restriction $\Delta t\le(\Delta x)^2/(2\beta)$.
-Signed mass is $\int m\,dx$ before clipping.}
-\label{tab:solvers}
-\begin{tabular}{lccc}
-\hline
- & Explicit FP & Implicit FP & Quantile JKO \\
-\hline
-Stable above CFL & no & yes & yes (no CFL) \\
-Signed mass (stable) & $\sim 10^{-15}$ & $\sim 10^{-15}$ & exact \\
-Positivity & fails above CFL & held on this test & exact \\
-Energy-increasing steps & diverges above CFL & $0$ & $0$ \\
-\hline
-\end{tabular}
-\end{table}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\linewidth]{exp04_solver_benchmark.png}
-\caption{Structure, not accuracy. (a)~Energy at $N=161$, $\Delta t=1.8\times$CFL:
-explicit diverges, implicit and JKO dissipate $F$. (b)~Signed mass on the left
-axis (implicit stays at $1$; explicit shown only while $|\int m|\le 2$) and
-explicit $\int m^-$ on a log right axis. Above CFL the explicit scheme loses
-positivity; signed-mass blow-up is the subsequent instability, not a failure of
-the flux form while the scheme is stable.}
-\label{fig:exp04}
+\includegraphics[width=\linewidth]{exp13_weak_identification.png}
+\caption{Separate weak-mean and weak-variance experiments.
+Exact KL, efficient information, estimator invalidity, and unconditional loss
+are reported separately. Sample sizes collapse against information, not against
+a universal $N(\Sigma_0-q)^2$ coordinate.}
+\label{fig:weak}
 \end{figure}
 
-\subsection{Solver comparison: refinement against analytic truth}
-\label{sec:exp-conv}
-
-To compare accuracy we start from $N(1,1)$, so the law remains Gaussian and
-$m_T^{\mathrm{exact}}=N(\mu_T,\Sigma_T)$ is known from
-Theorem~\ref{thm:gauss}. We evolve to a common $T=1$ (not yet equilibrium:
-$\mu_T=e^{-1}\approx 0.368$, $\Sigma_T\approx 0.367$) and measure
-$W_2(m_T^{\mathrm{num}},m_T^{\mathrm{exact}})$, moment errors, energy error,
-signed mass, positivity, energy increases, and runtime
-(Figure~\ref{fig:exp09}, Table~\ref{tab:conv}).
-
-JKO error is first-order in the proximal step $\tau$ and almost insensitive to
-the quantile size $M\in\{60,480\}$ in this range: at $\tau=0.05$,
-$W_2$ is $0.011$ for $M=60$ and $0.010$ for $M=480$. A fit
-$\log W_2=\alpha+p\log\tau$ over the five-point refinement
-$\tau\in\{0.2,0.1,0.05,0.025,0.0125\}$ yields $p=0.95$ at $M=240$ and
-$p=0.96$ at $M=480$ (the slope increases toward $1$ as $M$ is refined).
-Implicit FP is limited by Eulerian numerical diffusion: at $N=81$,
-refining $\Delta t$ from $0.2$ to $0.025$ only moves $W_2$ from $0.121$ to
-$0.069$. The finest implicit run ($N=641$, $\Delta t=0.025$) still has
-$W_2=0.018$. Explicit CFL-stable runs are more accurate at the same $N$ than
-implicit (they take much smaller steps) but become expensive: $N=641$ at
-$0.5\times$CFL reaches $W_2=0.0085$ in $9.85\,\mathrm{s}$. JKO at $M=480$,
-$\tau=0.0125$ reaches $W_2=0.0028$ in $0.39\,\mathrm{s}$; even $M=60$,
-$\tau=0.0125$ attains $0.0036$ in $0.28\,\mathrm{s}$. All reported JKO and
-stable FP runs had zero energy-increasing steps.
-
-Runtimes in Table~\ref{tab:conv} are the median of $10$ single-threaded repeats
-after one warm-up, on an Apple M2. Scatter points in
-Figure~\ref{fig:exp09}(c)--(d) remain single-run times.
-
-On this Gaussian test, JKO is more accurate per runtime than either Eulerian
-scheme: over the tested range of $M$, its error is dominated by temporal
-discretization, while the grid schemes pay for spatial diffusion and, for
-explicit Euler, for CFL. We still do not claim a theorem that JKO is more
-accurate at equal spatial resolution on general data: $M$ and $N$ are not the
-same discretization. The Gaussian initial law is the one a quantile scheme
-represents exactly. As a check, we also evolve the original bimodal Gaussian
-mixture, which remains a mixture under the affine McKean--Vlasov map
-$X_t=\mu_0 e^{-at}+e^{-(a+b)t}(X_0-\mu_0)+Z_t$ with
-$Z_t\sim N\bigl(0,\tfrac{\beta}{a+b}(1-e^{-2(a+b)t})\bigr)$,
-so each component mean and variance is known exactly and the weights are fixed.
-That exact non-Gaussian law is the reference for the open markers in
-Figure~\ref{fig:exp09}(c). On this subset the quantile representation is less
-favorable: at $M=240$, $\tau=0.0125$, JKO $W_2$ is $0.0049$ versus $0.0028$ on
-the Gaussian test, and at $\tau=0.05$ it is $0.018$ versus $0.011$. The error
-still tracks $\tau$. The finest implicit comparison ($N=641$, $\Delta t=0.025$)
-has $W_2=0.024$ (versus $0.018$ Gaussian). JKO remains more accurate than the
-Eulerian runs on this exact non-Gaussian law; the gap is smaller than on the
-Gaussian test, which is consistent with not promoting the Gaussian ranking into
-a theorem.
-
-\begin{table}[t]
+\begin{figure}[htbp]
 \centering
-\caption{Representative refinement against $m_T^{\mathrm{exact}}=N(\mu_T,\Sigma_T)$
-at $T=1$, $\mu_0=1$, $\Sigma_0=1$. $W_2$ is to the exact law, not to $m_\infty$.
-Runtimes are the median of $10$ single-threaded repeats after one warm-up, on
-an Apple M2.}
+\includegraphics[width=\linewidth]{exp20_boundary_scaling.png}
+\caption{Quadratic collapse at the non-identifiable boundary.
+(a)~$I_a^{\mathrm{eff}}\propto\mu_0^2$ exactly; $\lambda_{\min}$ follows with
+fitted slope $1.96$.
+(b)~$I_k^{\mathrm{eff}}\propto\varepsilon^2 C(\varepsilon)$, fitted
+$\lambda_{\min}$ slope $1.92$.
+(c)~RMSE of $\hat a$ blows up as $\mu_0\to 0$ and remains small as
+$\varepsilon\to 0$.}
+\label{fig:scaling}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp19_identifiability_phase.png}
+\caption{Identifiability phase diagram at fixed sample budget.
+(a)~$\log_{10}\lambda_{\min}(I_{a,b,\beta})$ vanishes on both axes.
+(b)~Plugin recovery probability for $(a,b,\beta)$.
+(c)~Median parameter error on the valid event. Structural null, weak, and
+well-identified cells are visible at the same $N_{\mathrm{tot}}=1200$.}
+\label{fig:phase}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp18_information_design.png}
+\caption{Snapshot design for the affine Gaussian law.
+(a)~$I_a^{\mathrm{eff}}$ as a function of two-snapshot spacing: too-close and
+too-late times are both weak.
+(b)~Asymptotic variance of $\sqrt N(\hat a-a)$ and Monte Carlo
+$N\mathrm{Var}(\hat a)$.
+(c)~Information against window start: observing after relaxation collapses
+the transient.}
+\label{fig:design}
+\end{figure}
+
+\paragraph{Solver and particle checks.}
+These remaining checks use the implicit conservative scheme, or one cloud of
+interacting particles, as indicated. They are numerical verification
+of~\eqref{eq:mv} and of the diagnostics. They are not independent-snapshot
+replications of Theorems~\ref{thm:est} and~\ref{thm:lam}.
+
+\paragraph{Quantile JKO.}
+In one dimension, $\Wtwo^2(\rho,\rho_k)=\int_0^1(Q-Q_k)^2\,du$ for the quantile
+function $Q$, and each JKO step is a strictly convex program over nondecreasing
+$Q$ (Appendix~\ref{app:jko1d}), solved by L-BFGS. We compare it with explicit
+and implicit conservative schemes on $[-6,6]$. Above the diffusive CFL limit the
+explicit scheme loses positivity and diverges. Implicit Euler and quantile JKO
+remain stable. On stable runs, energy increments larger than $10^{-9}$ do not
+occur. Signed mass of a stable Eulerian scheme agrees with $1$ to about
+$10^{-15}$; quantile JKO is normalized by construction.
+
+For accuracy we start from $N(1,1)$, so the law remains
+$N(\mu_T,\Sigma_T)$, and we measure $W_2$ at $T=1$
+(Table~\ref{tab:conv}, Figure~\ref{fig:conv}). A log--log fit on
+$\tau\in\{0.2,0.1,0.05,0.025,0.0125\}$ gives slope $0.95$ at $M=240$ quantiles
+and $0.96$ at $M=480$. At fixed $\tau=0.05$ the error barely changes from
+$M=60$ to $M=480$. JKO at $M=480$, $\tau=0.0125$ reaches $W_2=0.0028$ in
+$0.39\,\mathrm{s}$. The finest implicit run in the table reaches $0.018$ in
+$0.083\,\mathrm{s}$, and the finest explicit CFL-stable run reaches $0.0085$ in
+$9.85\,\mathrm{s}$. Runtimes are medians of ten single-threaded repeats after
+one warm-up on an Apple M2.
+
+The Gaussian law is represented exactly by its quantiles, so that test favors
+the JKO coordinate. On the exact image of the symmetric Gaussian mixture under
+\eqref{eq:affine}, the same JKO setting $M=240$, $\tau=0.0125$ has $W_2=0.0049$,
+and the implicit run $N=641$, $\Delta t=0.025$ has $W_2=0.024$. The gap narrows,
+and the comparison is still across different discretizations: a quantile count
+$M$ is not a grid count $N$. We do not state an equal-resolution theorem.
+
+\begin{table}[htbp]
+\centering
+\caption{Refinement against $N(\mu_T,\Sigma_T)$ at $T=1$, from $N(1,1)$.
+$W_2$ is distance to the exact law at time $T$, not to equilibrium.}
 \label{tab:conv}
-\begin{tabular}{lcccc}
-\hline
-Method & setting & $W_2$ to exact & $|\Sigma_T-\Sigma_T^{\mathrm{ex}}|$ & runtime (s) \\
-\hline
-JKO & $M=240$, $\tau=0.05$ & $0.011$ & $0.0046$ & $0.094$ \\
-JKO & $M=480$, $\tau=0.0125$ & $0.0028$ & $0.00076$ & $0.387$ \\
-Implicit FP & $N=161$, $\Delta t=0.05$ & $0.049$ & $0.049$ & $0.015$ \\
-Implicit FP & $N=641$, $\Delta t=0.025$ & $0.018$ & $0.015$ & $0.083$ \\
-Explicit FP & $N=161$, $0.5\times$CFL & $0.031$ & $0.037$ & $0.196$ \\
-Explicit FP & $N=641$, $0.5\times$CFL & $0.0085$ & $0.0093$ & $9.85$ \\
-\hline
+\small
+\begin{tabular}{llccc}
+\toprule
+Method & Setting & $W_2$ to exact & $|\Sigma_T-\Sigma_T^{\mathrm{ex}}|$ & Runtime (s)\\
+\midrule
+JKO & $M=240$, $\tau=0.05$ & $0.011$ & $0.0046$ & $0.094$\\
+JKO & $M=480$, $\tau=0.0125$ & $0.0028$ & $0.00076$ & $0.387$\\
+Implicit FP & $N=161$, $\Delta t=0.05$ & $0.049$ & $0.049$ & $0.015$\\
+Implicit FP & $N=641$, $\Delta t=0.025$ & $0.018$ & $0.015$ & $0.083$\\
+Explicit FP & $N=161$, $0.5\times$CFL & $0.031$ & $0.037$ & $0.196$\\
+Explicit FP & $N=641$, $0.5\times$CFL & $0.0085$ & $0.0093$ & $9.85$\\
+\bottomrule
 \end{tabular}
 \end{table}
 
@@ -808,505 +1628,227 @@ Explicit FP & $N=641$, $0.5\times$CFL & $0.0085$ & $0.0093$ & $9.85$ \\
 \centering
 \includegraphics[width=\linewidth]{exp09_convergence.png}
 \caption{Refinement against closed-form laws at $T=1$.
-(a)~JKO $W_2$ versus $\tau$ on the Gaussian test, with a slope-$1$ reference.
-(b)~Implicit FP $W_2$ versus $\Delta t$.
-(c)~$W_2$ versus runtime: filled markers are Gaussian truth; open markers are
-the exact bimodal-mixture law. (d)~Gaussian variance error versus runtime.}
-\label{fig:exp09}
+(a)~JKO $W_2$ against $\tau$, with a slope-$1$ reference.
+(b)~Implicit Eulerian $W_2$ against $\Delta t$.
+(c)~$W_2$ against runtime. Filled markers use the Gaussian law; open markers use
+the exact bimodal-mixture law.
+(d)~Gaussian variance error against runtime.}
+\label{fig:conv}
 \end{figure}
 
-\section{Synthetic diagnostics and a template for empirical tests}
-\label{sec:diagnostics}
+\paragraph{Relaxation.}
+From $m_0=\tfrac12 N(-2,0.2^2)+\tfrac12 N(2,0.2^2)$, the implicit scheme with
+$\Delta t=2\times 10^{-3}$ and $481$ nodes contracts onto $N(0,1/3)$. The energy
+has no increments above $10^{-9}$, the terminal variance is $0.345$ against
+$1/3$, and $\Wtwo(\cdot,m_\infty)$ falls from $1.55$ to $0.010$
+(Figure~\ref{fig:exp01}). The excess variance is numerical diffusion. The
+shifted mixture $\tfrac12 N(-1.2,0.2^2)+\tfrac12 N(2.8,0.2^2)$ has mean-law
+RMSE $0.0019$ against $\mu_0 e^{-at}$.
 
-Dealer inventories are not observed at the population level, so this section is
-a synthetic template rather than an empirical study. The tests distinguish data
-generated by $F$ from several deliberately wrong dynamics, including a nearby
-nonquadratic potential, with no calibrated hypothesis test of controlled size.
+\paragraph{Liquidity shock.}
+With $c_t=2$ on $[2,4)$ and $c_t=0$ otherwise, the exact mean at $t=4$ is
+$2(1-e^{-2})\approx 1.729$. The implicit scheme reaches $1.720$, with path RMSE
+$0.006$. A sweep over $c\in\{1,2,3\}$ and $\Delta T\in\{0.5,1,2\}$ has mean
+absolute error $0.009$ against $c(1-e^{-a\Delta T})$ (Figure~\ref{fig:exp02}).
+The untilted energy increases on every forced step and on none after the tilt
+returns to zero. The tilted energy jumps when $c$ switches, because the
+functional changes, and then decreases on each constant-$c$ interval.
 
-Even under~\eqref{eq:mv}, cosine alignment cannot carry the empirical claim by
-itself. We treat three complementary diagnostics.
+\paragraph{Comparative statics.}
+Equilibrium variance decreases in $b$ and tracks $\beta/(a+b)$, with maximum
+absolute error $0.021$ on the $b$-sweep. Fitted mean rates recover $a$ with
+mean absolute error $0.029$ (Figure~\ref{fig:exp03}).
 
-\paragraph{Moment restrictions (first).}
-The quadratic model gives low-dimensional, hard-to-hide predictions. On a
-training segment only, estimate $a$ from consecutive means and $(a+b)$,
-$\sigma_\infty^2$ from consecutive variances; then test out of sample
-\begin{align}
-  \mu_{t+\Delta t}
-  &\stackrel{?}{\approx}
-  e^{-a\Delta t}\mu_t,
-  \label{eq:mean-restrict}\\
-  \Sigma_{t+\Delta t}
-  &\stackrel{?}{\approx}
-  \frac{\beta}{a+b}
-  +
-  e^{-2(a+b)\Delta t}
-  \Bigl(\Sigma_t-\frac{\beta}{a+b}\Bigr).
-  \label{eq:var-restrict}
-\end{align}
-If~\eqref{eq:mean-restrict}--\eqref{eq:var-restrict} fail badly out of sample,
-that is the result; a more flexible score estimator should not be used to hide
-it.
+\paragraph{Solver structure.}
+Below the diffusive CFL restriction $\Delta t\le(\Delta x)^2/(2\beta)$, explicit
+Euler conserves signed mass to about $10^{-15}$ and stays nonnegative on this
+test. Above CFL it loses positivity, and the signed integral then blows up with
+the instability. Implicit Euler remains stable above CFL, conserves signed mass
+to about $10^{-15}$, and stayed nonnegative on this test. Quantile JKO has no
+CFL restriction (Table~\ref{tab:solvers}, Figure~\ref{fig:exp04}).
 
-On McKean--Vlasov particles generated from the true $(a,b,\beta)$, a
-chronological split on one trajectory recovers $\hat a=0.984$ (true $1$) and
-$\widehat{a+b}=1.455$ (true $1.5$), with out-of-sample mean MAE $0.004$ and
-variance MAE $0.008$ (Figure~\ref{fig:exp06}). Repeating the fit across $40$
-independent seeds (training window of $12$ steps, then $8$ test steps) gives,
-at $N=800$ particles and $\Delta t=0.05$, MAE $0.062$ for $\hat a$
-(bias $-0.002$) and $0.072$ for $\widehat{a+b}$. Recovered $b$ and $\beta$ are
-noisier (MAE $0.10$ and $0.14$): they are inferred from differences and products
-of the two moment rates. At $N=1600$ the MAE of $\hat a$ falls to $0.035$.
-Out-of-sample one-step $W_2$ of the fitted Gaussian-moment predictor is $0.034$
-versus $0.050$ for persistence ($N=800$; Figure~\ref{fig:exp10}). Larger
-$\Delta t=0.2$ introduces a visible bias in $\widehat{a+b}$.
+\begin{table}[htbp]
+\centering
+\caption{Autonomous bimodal flow at $T=1.5$.
+Signed-mass entries are $|\int m\,dx-1|$ on runs that remain stable.
+Energy counts are increments larger than $10^{-9}$.}
+\label{tab:solvers}
+\small
+\begin{tabular}{lccc}
+\toprule
+ & Explicit FP & Implicit FP & Quantile JKO\\
+\midrule
+Stable above CFL & no & yes & yes (no CFL)\\
+$|\int m-1|$ while stable & $\sim 10^{-15}$ & $\sim 10^{-15}$ & exact\\
+Positivity & fails above CFL & held on this test & exact\\
+Energy increments & unstable above CFL & $0$ & $0$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Interacting particles.}
+Figures~\ref{fig:exp06}--\ref{fig:exp08} evolve one McKean--Vlasov particle
+system, as in Remark~\ref{rem:particles}. A chronological split on one
+trajectory recovers $\hat a=0.984$ and $\widehat{a+b}=1.455$, against $1$ and
+$1.5$, with out-of-sample mean MAE $0.004$ and variance MAE $0.008$. Across
+$40$ seeds at $N=800$ particles and $\Delta t=0.05$, the MAE of $\hat a$ is
+$0.062$ (bias $-0.002$) and the MAE of $\widehat{a+b}$ is $0.072$. The MAE of
+$\hat a$ falls to $0.035$ at $N=1600$. Estimates of $b$ and $\beta$ are noisier
+(MAE $0.10$ and $0.14$), because they are recovered from a difference and a
+product of the two rates. At $\Delta t=0.2$ the estimate of $a+b$ is visibly
+biased. Out-of-sample one-step $W_2$ of the fitted Gaussian-moment predictor is
+$0.034$, against $0.050$ for persistence, at $N=800$.
+
+On the forecast windows, one-step $W_2$ is $0.064$ for persistence, $0.045$ for
+affine moment matching, $0.048$ for a no-interaction baseline, and $0.036$ for
+one JKO step. A short training window can miss the Gibbs variance: in that run
+the fitted $\sigma_\infty^2$ is about $0.094$, against $1/3$, while the local
+increments still beat persistence. Mean cosine falls from $0.87$ at
+$\Delta t=0.05$ to $0.35$ at $\Delta t=0.40$.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp01_relaxation.png}
+\caption{Relaxation of a bimodal law onto $N(0,1/3)$ under the implicit scheme.
+The terminal variance gap is numerical diffusion.}
+\label{fig:exp01}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp02_shock.png}
+\caption{Piecewise-constant tilt. The mean follows the exact ODE on each
+interval. The untilted energy rises during the tilt; the tilted energy jumps
+at switches and then falls.}
+\label{fig:exp02}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp03_parameter_sweep.png}
+\caption{Equilibrium variance against the interaction strength $b$, compared
+with $\beta/(a+b)$.}
+\label{fig:exp03}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp04_solver_benchmark.png}
+\caption{Structure above the diffusive CFL limit.
+(a)~Energy: explicit Euler diverges; implicit Euler and JKO dissipate $F$.
+(b)~Signed mass. The explicit curve is shown only while $|\int m|\le 2$; the
+subsequent blow-up follows the loss of positivity.}
+\label{fig:exp04}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp06_moment_validation.png}
-\caption{Train-then-test moment restrictions on synthetic McKean--Vlasov
-particles (one trajectory). Out-of-sample mean and variance increments match the
-closed-form laws.}
+\caption{Train-then-test moment restrictions on one interacting-particle
+trajectory.}
 \label{fig:exp06}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp10_parameter_recovery.png}
-\caption{Repeated-seed synthetic parameter recovery ($40$ seeds). MAE of $\hat a$,
-out-of-sample variance MAE, and one-step $W_2$ versus persistence, as particle
-count and $\Delta t$ vary.}
+\caption{Parameter recovery across $40$ interacting-particle seeds.}
 \label{fig:exp10}
 \end{figure}
-
-\paragraph{Distribution forecasting (second).}
-Given $D_t$, form $\widehat D_{t+\Delta t}$ from the fitted flow (Gaussian
-moment matching, or one JKO step) and compare
-$\Wtwo(\widehat D_{t+\Delta t},D_{t+\Delta t})$ to persistence and to a
-no-interaction ($b=0$) baseline. Parameters are estimated only on past windows.
-
-On the same synthetic flow, mean one-step $\Wtwo$ is $0.064$ for persistence,
-$0.045$ for affine moment matching, $0.048$ for $b=0$, and $0.036$ for one JKO
-step (Figure~\ref{fig:exp07}). When the data really are generated by the model,
-the model contains predictive information beyond carrying the previous cloud
-forward. (A short, far-from-equilibrium training window can still mis-identify
-$\sigma_\infty^2$; local increments may forecast even when the Gibbs variance is
-not recovered.)
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp07_distribution_forecast.png}
-\caption{One-step $\Wtwo$ forecasts on synthetic data generated by the model.
-JKO ($0.036$) and moment matching beat persistence ($0.064$).}
+\caption{One-step $W_2$ forecasts on interacting particles. Moment matching and
+one JKO step beat persistence. The fitted Gibbs variance on this short window
+is not reliable.}
 \label{fig:exp07}
 \end{figure}
-
-\paragraph{Local directional alignment (third).}
-For consecutive empirical clouds $(D_t,D_{t+\Delta t})$, let $T$ be the
-one-dimensional monotone (Brenier) map and $u_{\mathrm{obs}}=T-\mathrm{id}$ the
-displacement of the two \emph{marginals}. This is not the trajectory of labeled
-dealers unless identities are observed. The predicted Otto velocity is
-\[
-  v_{\mathrm{pred}}(x)
-  =
-  -(a+b)x+b\mu_t-\beta\nabla\log\rho_t(x).
-\]
-In $L^2(D_t)$ we report the signed cosine
-\[
-  \cos\theta
-  =
-  \frac{\langle u_{\mathrm{obs}},v_{\mathrm{pred}}\rangle}
-  {|u_{\mathrm{obs}}|\,|v_{\mathrm{pred}}|},
-\]
-the best-fit scale
-$\hat\lambda=\langle u_{\mathrm{obs}},v_{\mathrm{pred}}\rangle/|v_{\mathrm{pred}}|^2$,
-and the unexplained Wasserstein displacement
-$|u_{\mathrm{obs}}-\hat\lambda v_{\mathrm{pred}}|^2/|u_{\mathrm{obs}}|^2=1-\cos^2\theta$.
-We do not call the residual rotational: in one dimension, and from marginals
-alone, microscopic circulation is not identifiable.
-
-Alignment is an interpretability diagnostic for whatever predictive success the
-first two tests obtain, not a substitute for them. Two synthetic facts make this
-precise.
-
-\emph{Window size is testable.} The gradient $v_{\mathrm{pred}}$ is an
-instantaneous tangent; OT between $D_t$ and $D_{t+\Delta t}$ is a finite
-displacement. On the true flow, mean $\cos\theta$ is $0.87$ at $\Delta t=0.05$
-and $0.35$ at $\Delta t=0.40$ (Figure~\ref{fig:exp08}), with later large windows
-changing sign. Directional agreement is a local statement; $\Delta t$ is not a
-pure nuisance that cosine removes.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{exp08_directional_alignment.png}
-\caption{Directional alignment versus window size $\Delta t$ on the true flow.
-Cosine falls from $\approx 0.87$ at $0.05$ to $\approx 0.35$ at $0.40$: the
-gradient is a local tangent, OT a finite displacement.}
+\caption{Cosine against window length on the true flow. The drop from about
+$0.87$ at $\Delta t=0.05$ to about $0.35$ at $\Delta t=0.40$ is the difference
+between a tangent and a finite displacement.}
 \label{fig:exp08}
 \end{figure}
 
-\emph{Cosine is blind to overall scale.} The map
-$(a,b,\beta)\mapsto c(a,b,\beta)$ multiplies $v_{\mathrm{pred}}$ by $c$ and
-leaves $\cos\theta$ unchanged. Evaluating the true trajectory at deliberately
-wrong parameters moves cosine only from $0.88$ to $0.81$, while variance MAE
-jumps from $0.019$ to $0.38$ (Figure~\ref{fig:exp05}, panels (a)--(b)). Moment
-restrictions recover the missing timescale; alignment does not. That is a reason
-to run~\eqref{eq:mean-restrict}--\eqref{eq:var-restrict} first, not an
-implementation footnote.
+\paragraph{Variance-interval diagnosis.}
+Profile sets are stored as components, including full-domain sets; an interval
+hull is labeled as a hull. Weak-signal profile sets cover because they are
+often the whole compact domain. With $180$ replications, binomial standard
+errors are about $0.02$ near coverage $0.93$. At the strongest displayed cell
+($N=1600$, scaled excitation $16$), the full-domain rate is $0$, nominal
+$95\%$ profile coverage is $0.933$ ($\mathrm{SE}\,0.019$), compatible with
+$0.95$, and the mean hull width remains $1.27$ on a domain of width $1.99$.
+The bootstrap undercovers throughout, with coverage from $0.05$ to $0.775$.
+Clipped oracle Wald coverage ranges from $0.906$ to $1$
+(Figure~\ref{fig:intervals}).
 
-On deliberately wrong generators (nonlinear $\tanh$ drift, omitted constant
-force, anti-gradient, rigid translation) cosine and/or the moment laws
-deteriorate, as they should. State-dependent diffusion with the correct drift
-still yields cosine $\approx 0.69$: the score term is not a sharp test of
-$\beta$. A nearby nonquadratic potential $V=\frac{a}{2}x^2+\frac{\gamma}{4}x^4$
-($\gamma=0.3$) is more informative than those caricatures: cosine is
-\emph{higher} than on the true quadratic flow ($0.91$ versus $0.88$), while
-variance MAE rises from $0.019$ to $0.090$. Alignment can look better on a
-plausible misspecification; the moment restrictions are what detect it.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{exp15_variance_interval_calibration.png}
+\caption{Variance-interval diagnosis by information regime.
+Profile sets, bootstrap sets, and clipped Wald intervals are compared on
+coverage, hull width, full-domain rate, and artificial boundary contact.
+Coverage near one can be uninformative when the set is the whole domain.}
+\label{fig:intervals}
+\end{figure}
+
+\paragraph{Alignment against moment restrictions.}
+The predicted velocity uses a Gaussian-kernel score with Silverman's bandwidth.
+On one fixed particle trajectory, replacing $(a,b,\beta)$ by
+$c(a,b,\beta)$ for $c\in\{1/2,1,2\}$ leaves the mean cosine unchanged to
+numerical precision, as Proposition~\ref{prop:blind} requires. A separate,
+nonuniform parameter error, $(1,0.5,0.5)\mapsto(2,2,0.2)$, moves the mean
+cosine from $0.88$ to $0.81$ while the next-step variance error jumps from
+$0.019$ to $0.38$. A quartic perturbation
+$V=\frac a2 x^2+\frac{0.3}{4}x^4$ produces a higher cosine than the true
+quadratic flow, $0.91$ against $0.88$, while the variance error rises from
+$0.019$ to $0.090$ (Figure~\ref{fig:falsify}). Changing the kernel bandwidth by
+factors $1/2$, $1$, and $2$ moves the true-flow cosine through
+$0.923$, $0.872$, and $0.813$. The cosine also falls with the window, from
+$0.87$ at $\Delta=0.05$ to $0.35$ at $\Delta=0.40$. The fitted scale tracks the
+window: $\hat\lambda\approx 0.020$ at $\Delta=0.02$ and $\hat\lambda\approx 0.048$
+at $\Delta=0.05$. Alignment is not a substitute for the moment map or for the
+intervention experiments.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\linewidth]{exp05_synthetic_falsification.png}
-\caption{Synthetic falsification. (a)~mean $\cos\theta$; (b)~next-step variance
-MAE; (c)~next-step mean MAE; (d)~unexplained displacement of the Brenier
-\emph{marginals}. Wrong overall scale barely moves cosine while wrecking the
-variance law. A nearby quartic potential has \emph{higher} cosine than the true
-quadratic DGP; moments detect it.}
-\label{fig:exp05}
+\caption{Synthetic falsification of the alignment statistic.
+(a)~Mean cosine. (b)~Next-step variance error. (c)~Next-step mean error.
+(d)~Unexplained displacement of the Brenier map between marginals.
+The nonuniform parameter error is not a scale transformation. Uniform scaling
+on fixed snapshots leaves cosine invariant. The quartic potential has a higher
+cosine than the true quadratic flow.}
+\label{fig:falsify}
 \end{figure}
 
-If an observable market-state distribution becomes available, we would run the
-three diagnostics in the order above, with chronological train/test splits and
-control distributions for cosine. Until then, Claim~3---empirical relevance for
-markets---remains open.
-
-\FloatBarrier
-\section{Conclusion}
-\label{sec:conclusion}
-
-In a one-dimensional quadratic mean-field inventory model, the population density
-is the $2$-Wasserstein gradient flow of an explicit free energy
-(Proposition~\ref{prop:gf}); JKO inherits mass conservation, positivity, and
-monotone energy dissipation unconditionally in the step size on the
-\emph{autonomous} problem (Theorem~\ref{thm:jko}); equilibria are
-McKean--Vlasov--Gibbs densities (Proposition~\ref{prop:eq}); and
-$N(0,\beta/(a+b))$ together with rates $a$ and $2(a+b)$ are available in closed
-form (Theorem~\ref{thm:gauss}). Numerical experiments confirm these predictions.
-JKO preserves probability structure and dissipates $F$ without a CFL
-restriction. Explicit finite differences fail above CFL, as expected. On the
-closed-form Gaussian test, JKO $W_2$ error is first-order in $\tau$ and smaller
-than Eulerian error at comparable runtime; a subset of the same refinement
-against the exact bimodal-mixture law is reported in
-Section~\ref{sec:exp-conv}. We still do not claim a general equal-resolution
-accuracy theorem.
-
-The interaction $W=\frac{b}{2}(x-y)^2$ with $b>0$ penalizes cross-sectional
-dispersion. A piecewise-constant tilt has an exact mean ODE on each interval;
-baseline $\mathcal{F}_0$ can rise while the instantaneous tilted energy
-dissipates after the switch. Lyapunov decrease is an autonomous property and is
-not claimed across a jump in $c$.
-
-What remains open is whether any observed market-state distribution is usefully
-approximated by descent of this $F$. The diagnostics
-above---moment restrictions, distributional forecasting, and local directional
-alignment---are a template for that test, not a substitute for it. A general
-market-making mean-field game is not a Wasserstein gradient flow. The quadratic
-specification makes the structure exact; more general costs and interactions need
-not preserve the same potential or Wasserstein-gradient-flow structure.
-
-\paragraph{Limitations.}
-The closed-form Gaussian results rely on the quadratic interaction, and the 1D
-quantile solver does not extend directly to high-dimensional agent states.
-
-\bibliographystyle{plainnat}
-\begin{thebibliography}{99}
-
-\bibitem[Ambrosio, Gigli, and Savar\'e(2008)]{AGS08}
-L.~Ambrosio, N.~Gigli, and G.~Savar\'e.
-\newblock \emph{Gradient Flows in Metric Spaces and in the Space of Probability
-Measures}.
-\newblock Birkh\"auser, 2nd edition, 2008.
-
-\bibitem[Avellaneda and Stoikov(2008)]{AvellanedaStoikov08}
-M.~Avellaneda and S.~Stoikov.
-\newblock High-frequency trading in a limit order book.
-\newblock \emph{Quantitative Finance}, 8(3):217--224, 2008.
-
-\bibitem[Baldacci, Bergault, and Possama\"i(2023)]{BaldacciBergaultPossamai2023}
-B.~Baldacci, P.~Bergault, and D.~Possama\"i.
-\newblock A mean-field game of market-making against strategic traders.
-\newblock \emph{SIAM Journal on Financial Mathematics}, 14(4):1080--1112, 2023.
-\newblock arXiv:2203.13053.
-
-\bibitem[Benamou and Brenier(2000)]{BenamouBrenier00}
-J.-D. Benamou and Y.~Brenier.
-\newblock A computational fluid mechanics solution to the Monge--Kantorovich
-mass transfer problem.
-\newblock \emph{Numerische Mathematik}, 84:375--393, 2000.
-
-\bibitem[Brenier(1991)]{Brenier91}
-Y.~Brenier.
-\newblock Polar factorization and monotone rearrangement of vector-valued
-functions.
-\newblock \emph{Communications on Pure and Applied Mathematics}, 44(4):375--417,
-1991.
-
-\bibitem[Cardaliaguet(2013)]{CardaliaguetNotes}
-P.~Cardaliaguet.
-\newblock Notes on mean field games (from P.-L.\ Lions' lectures at Coll\`ege de
-France).
-\newblock Unpublished lecture notes, 2013.
-
-\bibitem[Gu\'eant, Lehalle, and Fernandez-Tapia(2013)]{GueantLehalleFernandez2013}
-O.~Gu\'eant, C.-A. Lehalle, and J.~Fernandez-Tapia.
-\newblock Dealing with the inventory risk: a solution to the market making
-problem.
-\newblock \emph{Mathematics and Financial Economics}, 7:477--507, 2013.
-
-\bibitem[Horv\'ath, Kokoszka, and Wang(2021)]{HorvathKokoszkaWang}
-L.~Horv\'ath, P.~Kokoszka, and S.~Wang.
-\newblock Monitoring for a change point in a sequence of distributions.
-\newblock \emph{Annals of Statistics}, 49 (2021).
-\newblock doi:10.1214/20-AOS2036.
-
-\bibitem[Jordan, Kinderlehrer, and Otto(1998)]{JKO98}
-R.~Jordan, D.~Kinderlehrer, and F.~Otto.
-\newblock The variational formulation of the Fokker--Planck equation.
-\newblock \emph{SIAM Journal on Mathematical Analysis}, 29(1):1--17, 1998.
-
-\bibitem[Mokrov et al.(2021)]{JKOflow}
-P.~Mokrov, A.~Korotin, L.~Li, A.~Kolesnikov, and E.~Burnaev.
-\newblock Large-scale Wasserstein gradient flows.
-\newblock In \emph{Advances in Neural Information Processing Systems}, 2021.
-
-\bibitem[Lasry and Lions(2007)]{LasryLions07}
-J.-M. Lasry and P.-L. Lions.
-\newblock Mean field games.
-\newblock \emph{Japanese Journal of Mathematics}, 2:229--260, 2007.
-
-\bibitem[McCann(1997)]{McCann97}
-R.~J. McCann.
-\newblock A convexity principle for interacting gases.
-\newblock \emph{Advances in Mathematics}, 128(1):153--179, 1997.
-
-\bibitem[Otto(2001)]{Otto01}
-F.~Otto.
-\newblock The geometry of dissipative evolution equations: the porous medium
-equation.
-\newblock \emph{Communications in Partial Differential Equations},
-26(1--2):101--174, 2001.
-
-\bibitem[Peyr\'e and Cuturi(2019)]{PeyreCuturi19}
-G.~Peyr\'e and M.~Cuturi.
-\newblock Computational optimal transport.
-\newblock \emph{Foundations and Trends in Machine Learning}, 11(5--6):355--607,
-2019.
-
-\bibitem[Santambrogio(2015)]{Santambrogio15}
-F.~Santambrogio.
-\newblock \emph{Optimal Transport for Applied Mathematicians}.
-\newblock Birkh\"auser, 2015.
-
-\bibitem[Villani(2003)]{Villani03}
-C.~Villani.
-\newblock \emph{Topics in Optimal Transportation}.
-\newblock AMS, 2003.
-
-\end{thebibliography}
-
-\appendix
-
-\section{Proofs}
-\label{app:proofs}
-
-We collect the proofs of the results of Section~\ref{sec:results}. Throughout,
-$F$ is the quadratic free energy~\eqref{eq:Fquad} on $\Ptwo(\R)$, and we write
-$\mu(\rho)=\int x\,\rho\,dx$ and
-$\Sigma(\rho)=\int x^2\rho\,dx-\mu(\rho)^2$ for the mean and variance.
-
-\subsection{Proof of Proposition~\ref{prop:gf}}
-
-We first compute the first variation of~\eqref{eq:Fquad}. For the interaction
-term, perturbing $\rho\mapsto\rho+\varepsilon\chi$ with $\int\chi=0$ and
-collecting the $O(\varepsilon)$ term, the symmetric kernel contributes
-$\int(W\ast\rho)\,\chi$, so the interaction first variation is $W\ast\rho$.
-Together with the elementary variations of the potential and entropy terms,
-\begin{equation}
-\label{eq:dF-app}
-\frac{\delta F}{\delta\rho}(x)
-=
-V(x)+(W\ast\rho)(x)+\beta\bigl(\log\rho(x)+1\bigr),
-\end{equation}
-in agreement with~\eqref{eq:dF}. For the quadratic data~\eqref{eq:quad},
-\[
-(W\ast\rho)(x)
-=
-\int\frac{b}{2}(x-y)^2\rho(y)\,dy
-=
-\frac{b}{2}\Bigl(x^2-2x\mu(\rho)+\int y^2\rho\,dy\Bigr),
-\]
-whence $\nabla(W\ast\rho)(x)=b(x-\mu(\rho))$ and $\nabla V(x)=ax$. Therefore
-\[
-\nabla\frac{\delta F}{\delta\rho}(x)
-=
-(a+b)x-b\mu(\rho)+\beta\frac{\nabla\rho}{\rho}.
-\]
-Substituting into~\eqref{eq:gf} yields~\eqref{eq:mv}. Writing this as
-$\partial_t m_t=-\partial_x(v_t m_t)+\beta\partial_{xx}m_t$ identifies
-$v_t(x)=-(a+b)x+b\mu_t$.
-
-For the mean-field-game statement, recall that in a potential game the coupling
-is a first variation, $f(x,m)=\delta G/\delta m$, and the forward equation
-of~\eqref{eq:mfg} is the continuity equation with drift $-D_p H(x,\nabla u)$. If
-the running cost and the Hamiltonian are chosen so that the equilibrium feedback
-reproduces the drift $-\nabla(V+W\ast m)$---as is the case for a quadratic
-inventory cost with the mean-field penalty
-$\frac12\iint W\,mm$---then the forward equation is
-precisely~\eqref{eq:mv}.\qed
-
-\subsection{Proof of Theorem~\ref{thm:jko}}
-
-(i) \emph{Existence and uniqueness.}
-The map $\rho\mapsto\frac1{2\tau}\Wtwo^2(\rho,\rho_k)$ is lower semicontinuous
-for the narrow topology and has $W_2$-bounded sublevel sets; $F$ is lower
-semicontinuous and bounded below on $\Ptwo(\R)$ (the entropy is controlled by the
-second moment via the Gaussian, and $V,W\ge 0$). Hence the JKO objective is
-l.s.c.\ with compact sublevel sets and a minimizer exists by the direct
-method~\cite{AGS08}. For uniqueness, by Theorem~\ref{thm:gauss}(iii) the
-functional $F$ is $a$-geodesically convex with $a>0$, and
-$\rho\mapsto\frac1{2\tau}\Wtwo^2(\rho,\rho_k)$ is $\frac1\tau$-geodesically
-convex along generalized geodesics; the sum is strictly convex, so the minimizer
-is unique~\cite[Ch.~4]{AGS08}.
-
-\emph{Absolute continuity and positivity.}
-If $\rho_{k+1}$ had a singular part, replacing it by its absolutely continuous
-regularization strictly decreases the entropy while changing $\Wtwo^2(\cdot,\rho_k)$
-and the other terms by an arbitrarily small amount, contradicting minimality;
-hence $\rho_{k+1}\ll\mathrm{Leb}$. The optimality condition for~\eqref{eq:jko-step}
-reads, with $\phi_k$ the Kantorovich potential from $\rho_{k+1}$ to $\rho_k$,
-\[
-\frac{\delta F}{\delta\rho}(\rho_{k+1})(x)+\frac{\phi_k(x)}{\tau}
-=\mathrm{const}
-\quad\text{on }\mathrm{supp}(\rho_{k+1}).
-\]
-Inserting~\eqref{eq:dF-app} and solving for the density yields a strictly
-positive Gibbs form.
-
-(ii) \emph{Mass and positivity.}
-The minimization is over $\Ptwo(\R)$, so $\rho_{k+1}$ is by definition a
-probability measure. No discretization of the flux is involved, so these hold
-exactly.
-
-(iii) \emph{Energy dissipation.}
-Since $\rho_{k+1}$ minimizes the objective and $\rho_k$ is admissible with
-$\Wtwo(\rho_k,\rho_k)=0$,
-\[
-F(\rho_{k+1})+\frac{1}{2\tau}\Wtwo^2(\rho_{k+1},\rho_k)
-\le
-F(\rho_k),
-\]
-which is~\eqref{eq:edp}; in particular $F(\rho_{k+1})\le F(\rho_k)$.
-
-(iv) \emph{Convergence as $\tau\to 0$.}
-Estimate~\eqref{eq:edp} is the discrete energy-dissipation inequality of the
-minimizing-movements scheme. Summing it yields
-\[
-\sum_k \Wtwo^2(\rho_{k+1},\rho_k)\le 2\tau\bigl(F(\rho_0)-\inf F\bigr).
-\]
-The associated piecewise-constant interpolants $\bar\rho_\tau$ are discontinuous,
-so they are not themselves elements of $C([0,T];\Ptwo(\R))$. The bound gives the
-approximate modulus
-\[
-\Wtwo\bigl(\bar\rho_\tau(t),\bar\rho_\tau(s)\bigr)
-\le
-C\sqrt{|t-s|+\tau},
-\]
-rather than a uniform $\tfrac12$-H\"older estimate independent of $\tau$. By the
-refined Ascoli theorem in $(\Ptwo,W_2)$, a subsequence of interpolants converges
-uniformly in time with respect to $\Wtwo$ to an absolutely continuous (hence
-continuous) curve, and the $a$-convexity of $F$ identifies the limit as the
-unique gradient flow of~\eqref{eq:mv}~\cite[Thm.~11.1.6 and Thm.~4.0.4]{AGS08};
-uniqueness of the limit promotes convergence of the whole family.\qed
-
-\subsection{Proof of Proposition~\ref{prop:eq}}
-
-A measure $m_\infty$ is stationary for~\eqref{eq:gf} iff
-$\nabla\cdot\bigl(m_\infty\nabla\delta F/\delta\rho(m_\infty)\bigr)=0$. Testing
-against $\delta F/\delta\rho(m_\infty)$ and integrating by parts forces
-$\nabla\delta F/\delta\rho(m_\infty)=0$ $m_\infty$-a.e., i.e.\
-$\delta F/\delta\rho(m_\infty)$ is constant on $\mathrm{supp}(m_\infty)$.
-Conversely a constant first variation makes the drift vanish. Setting
-\eqref{eq:dF-app} equal to a constant and solving yields~\eqref{eq:gibbs}.\qed
-
-\subsection{Proof of Theorem~\ref{thm:gauss}}
-
-(i) \emph{Equilibrium.}
-For the quadratic data, $(W\ast m_\infty)(x)=\frac{b}{2}(x^2-2x\mu_\infty+\int y^2 m_\infty)$
-with $\mu_\infty=\mu(m_\infty)$. The effective potential in~\eqref{eq:gibbs} is
-therefore quadratic in $x$,
-\[
-V(x)+(W\ast m_\infty)(x)
-=
-\frac{a+b}{2}x^2-b\mu_\infty x+\mathrm{const},
-\]
-so $m_\infty$ is Gaussian. Completing the square, its mean is
-$b\mu_\infty/(a+b)$; self-consistency forces $\mu_\infty=0$ since $a>0$. The
-coefficient of $x^2$ is $(a+b)/(2\beta)$, giving variance
-$\sigma_\infty^2=\beta/(a+b)$. Uniqueness follows from
-Proposition~\ref{prop:eq} together with strict convexity.
-
-(ii) \emph{Moment dynamics.}
-Multiply~\eqref{eq:mv} in the form $\partial_t m=-\partial_x(vm)+\beta\partial_{xx}m$,
-$v(x)=-(a+b)x+b\mu_t$, by $x$ and integrate:
-$\dot\mu_t=\int v\,m_t\,dx=-(a+b)\mu_t+b\mu_t=-a\mu_t$,
-so $\mu_t=\mu_0 e^{-at}$. Multiplying instead by $x^2$ and writing
-$S_t=\int x^2 m_t$,
-$\dot S_t=-2(a+b)S_t+2b\mu_t^2+2\beta$.
-With $\Sigma_t=S_t-\mu_t^2$ and $\frac{d}{dt}(\mu_t^2)=-2a\mu_t^2$,
-\[
-\dot\Sigma_t
-=
-\dot S_t-2\mu_t\dot\mu_t
-=
--2(a+b)\Sigma_t+2\beta,
-\]
-where the $\mu_t^2$ terms cancel because $-2(a+b)+2b+2a=0$. Integrating gives
-the variance law in~\eqref{eq:moments}.
-
-(iii) \emph{Displacement convexity and contraction.}
-By McCann's criterion~\cite{McCann97}, on $(\Ptwo(\R),\Wtwo)$ the internal
-energy $\beta\int\rho\log\rho$ is geodesically convex; the potential energy
-$\int V\rho$ is $a$-geodesically convex since $V''=a$; and the interaction
-energy with $W(z)=\frac{b}{2}z^2$ convex is geodesically convex. Summing, $F$ is
-$a$-geodesically convex. The general theory of gradient flows of $\lambda$-convex
-functionals then yields the exponential contraction~\cite[Thm.~11.2.1]{AGS08},
-and the corresponding contraction of the resolvent (JKO) operator. The rate is
-sharp: by~\eqref{eq:moments} the mean is the slowest mode, relaxing at exactly
-$a$ while the variance relaxes faster at $2(a+b)$.\qed
-
-\section{On the one-dimensional JKO discretization}
-\label{app:jko1d}
-
-In one dimension the optimal transport between $\rho$ and $\rho_k$ is the
-monotone rearrangement, and
-$\Wtwo^2(\rho,\rho_k)=\int_0^1\bigl(Q_\rho(u)-Q_{\rho_k}(u)\bigr)^2\,du$
-where $Q_\rho=F_\rho^{-1}$ is the quantile function. Pushing the free energy
-through this change of variable, using $\rho(Q(u))=1/Q'(u)$, gives
-\[
-F[Q]
-=
-\frac{a}{2}\int_0^1 Q(u)^2\,du
-+
-\frac{b}{2}\Bigl(\int_0^1 Q^2-\Bigl(\int_0^1 Q\Bigr)^2\Bigr)
--
-\beta\int_0^1\log Q'(u)\,du,
-\]
-so that each JKO step is the strictly convex program
-$\min_Q\, F[Q]+\frac1{2\tau}\int_0^1(Q-Q_k)^2\,du$ over nondecreasing $Q$. We
-parametrize monotonicity through nonnegative increments and solve with L-BFGS.
-Mass is conserved and positivity ($Q'>0$) is enforced exactly by construction,
-which is why the JKO column of Table~\ref{tab:solvers} attains exact mass
-conservation and positivity. In higher dimensions the monotone rearrangement is
-unavailable and one resorts to entropic regularization of the proximal
-step~\cite{PeyreCuturi19}.
+\paragraph{Official JKOnet* attempt.}
+We pinned the public JKOnet* code of~\citet{Terpin24} at revision
+\texttt{1741c53} and ran the released \texttt{jkonet-star-linear} solver on
+independent snapshots of the same quadratic model, preserving its coupling,
+GMM-density, and linear least-squares pipeline. Consecutive snapshot labels
+are treated as unit steps. For physical spacing $\Delta$, the official unit
+clock therefore corresponds to continuous coefficients $\Delta(a,b,\beta)$
+rather than $(a,b,\beta)$; that global time rescaling is separate from the
+finite-step JKO approximation of the flow. The attempt uses equally spaced
+times $\{0,0.5,1\}$ rather than the unequal grid of Experiments~12 and~14,
+so $\Delta=1/2$ and a faithful coefficient comparison would rescale by that
+factor. The polynomial degree is set to $2$ inside the official linear
+objective. On a
+quick equal-budget check with $300$ samples per time, the official one-step
+$W_1$ error is $0.078$ after centered training and $0.073$ after shifted-only
+training. Concatenating the mixed means into one unlabeled cloud produces a
+mean-zero mixture, which is not the three-population design of
+Experiment~14, and the official test split is particles from the same
+populations rather than an independent shifted intervention. The released CLI has no population identifier, so a faithful mixed-arm
+comparison would require a population-aware adapter around the official linear
+normal equations rather than pooling clouds before OT. Those gaps are
+recorded in \texttt{results/exp16\_jkonet\_star\_comparison.json}. The run is
+therefore a verified execution of the official solver, not a substitute for
+the exact-likelihood recovery experiment.
 
 \end{document}
