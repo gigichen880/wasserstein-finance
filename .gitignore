@@ -1,5 +1,8 @@
 __pycache__/
 .pytest_cache/
+.vendor/
+data_by_stocks/
+research/empirical/cache/
 paper/*.aux
 paper/*.log
 paper/*.out
