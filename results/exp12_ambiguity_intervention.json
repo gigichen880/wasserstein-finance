@@ -1,0 +1,110 @@
+{
+  "claim": "centered_ambiguity_shifted_intervention",
+  "seed": 12,
+  "n_per_snapshot": 400,
+  "replications": 500,
+  "times": [
+    0.25,
+    0.5,
+    1.0
+  ],
+  "shift": 0.8,
+  "var0": 1.5,
+  "base_model": {
+    "a": 1.0,
+    "b": 0.5,
+    "beta": 0.5,
+    "sigma2_inf": 0.3333333333333333
+  },
+  "h_grid": [
+    -0.75,
+    -0.5,
+    -0.25,
+    0.0,
+    0.2,
+    0.4
+  ],
+  "max_population_centered_mean_diff": 0.0,
+  "max_population_centered_var_diff": 0.0,
+  "max_sample_centered_excess_loss": 0.0,
+  "max_shifted_final_w2": 0.3287370735199701,
+  "rows": [
+    {
+      "h": -0.75,
+      "a": 0.25,
+      "b": 1.25,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.06295636121405997,
+      "shifted_excess_nll_se": 0.0005021437395467801,
+      "shifted_population_excess_nll": 0.06281063339083039,
+      "shifted_final_w2": 0.3287370735199701
+    },
+    {
+      "h": -0.5,
+      "a": 0.5,
+      "b": 1.0,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.02225091279390076,
+      "shifted_excess_nll_se": 0.0002977252469765168,
+      "shifted_population_excess_nll": 0.022150013593758233,
+      "shifted_final_w2": 0.1909209748329529
+    },
+    {
+      "h": -0.25,
+      "a": 0.75,
+      "b": 0.75,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.004502768247026456,
+      "shifted_excess_nll_se": 0.0001332354591593646,
+      "shifted_population_excess_nll": 0.004451309546352019,
+      "shifted_final_w2": 0.0835896892556579
+    },
+    {
+      "h": 0.0,
+      "a": 1.0,
+      "b": 0.5,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.0,
+      "shifted_excess_nll_se": 0.0,
+      "shifted_population_excess_nll": 0.0,
+      "shifted_final_w2": 0.0
+    },
+    {
+      "h": 0.2,
+      "a": 1.2,
+      "b": 0.3,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.0019430751086650716,
+      "shifted_excess_nll_se": 8.865598067531173e-05,
+      "shifted_population_excess_nll": 0.0019844363553677257,
+      "shifted_final_w2": 0.05334818340739217
+    },
+    {
+      "h": 0.4,
+      "a": 1.4,
+      "b": 0.09999999999999998,
+      "beta": 0.5,
+      "centered_excess_nll_mean": 0.0,
+      "centered_excess_nll_se": 0.0,
+      "shifted_excess_nll_mean": 0.006760772341013089,
+      "shifted_excess_nll_se": 0.00016436690577805314,
+      "shifted_population_excess_nll": 0.00684291938781256,
+      "shifted_final_w2": 0.09702598178386868
+    }
+  ],
+  "supports_ambiguity": true,
+  "supports_intervention_disagreement": true,
+  "notes": "Centered training snapshots are independent across times and replications. The shifted holdout is a physical new initial population under the same energy. It reveals this ridge but does not prove global nonlinear identifiability.",
+  "runtime_sec": 0.49245500564575195,
+  "command": "python experiments/12_ambiguity_intervention.py"
+}
