@@ -7,6 +7,18 @@ import pytest
 
 from wfmm.diagnostics import alignment
 from wfmm.estimation import fit_moment_laws, score_kde, silverman_bandwidth
+from wfmm.identifiability import (
+    gaussian_moments,
+    gaussian_w2_1d,
+    gaussian_w2_same_variance,
+    known_design_mean_information,
+    mean_efficient_information,
+    mean_kl_known_mu,
+    mean_kl_profile_mu,
+    ridge_model,
+    variance_efficient_information,
+    variance_kl,
+)
 from wfmm.model import Model, predicted_drift, predicted_velocity
 from wfmm.solvers.jko import JKO1D
 from wfmm.transport import ot_map_1d, w2_samples
@@ -24,6 +36,76 @@ def test_mean_and_variance_laws():
     s0 = 0.9
     expected = m.sigma2_inf + (s0 - m.sigma2_inf) * np.exp(-2 * (m.a + m.b) * t)
     assert np.allclose(m.var_law(s0, t), expected)
+
+
+def test_centered_ridge_is_invariant_and_shifted_holdout_is_not():
+    base = Model(a=1.0, b=0.5, beta=0.5)
+    alternative = ridge_model(base, h=0.4)
+    times = np.array([0.25, 0.5, 1.0])
+    mu_base, var_base = gaussian_moments(base, 0.0, 1.5, times)
+    mu_alt, var_alt = gaussian_moments(alternative, 0.0, 1.5, times)
+    assert np.allclose(mu_base, mu_alt, atol=0.0)
+    assert np.allclose(var_base, var_alt, atol=1e-14)
+
+    shifted_base, shifted_var_base = gaussian_moments(base, 0.8, 1.5, times)
+    shifted_alt, shifted_var_alt = gaussian_moments(alternative, 0.8, 1.5, times)
+    assert np.allclose(shifted_var_base, shifted_var_alt, atol=1e-14)
+    expected = 0.8 * abs(np.exp(-base.a) - np.exp(-alternative.a))
+    assert gaussian_w2_same_variance(shifted_base[-1], shifted_alt[-1]) == pytest.approx(expected)
+
+
+def test_gaussian_w2_and_equal_budget_information_ratio():
+    assert gaussian_w2_1d(0.0, 1.0, 1.0, 4.0) == pytest.approx(np.sqrt(2.0))
+    times = np.array([0.25, 0.5, 1.0])
+    variances = np.array([1.0, 0.8, 0.6])
+    shifted = known_design_mean_information(
+        1.0, np.array([0.8]), np.array([300]), times, variances
+    )
+    mixed = known_design_mean_information(
+        1.0, np.array([-0.8, 0.0, 0.8]), np.array([100, 100, 100]),
+        times, variances,
+    )
+    assert mixed / shifted == pytest.approx(2.0 / 3.0)
+
+
+def test_ridge_rejects_negative_interaction_and_shifted_w2_is_mean_gap():
+    base = Model(a=1.0, b=0.5, beta=0.5)
+    with pytest.raises(ValueError):
+        ridge_model(base, h=0.6)
+    alt = ridge_model(base, h=0.4)
+    t = 1.0
+    mu0, s0 = 0.8, 1.5
+    w2 = float(gaussian_w2_1d(
+        base.mean_law(mu0, t), base.var_law(s0, t),
+        alt.mean_law(mu0, t), alt.var_law(s0, t),
+    ))
+    assert w2 == pytest.approx(abs(mu0 * (np.exp(-base.a * t) - np.exp(-alt.a * t))))
+
+
+def test_weak_signal_kl_and_information_vanish_at_exact_ambiguity():
+    times = np.array([0.0, 0.5, 1.0])
+    known = mean_kl_known_mu(1.0, 1.2, 0.0, 1.5, 0.5, 1.5, times, 200)
+    profiled, _ = mean_kl_profile_mu(1.0, 1.2, 0.0, 1.5, 0.5, 1.5, times, 200)
+    info_mean = mean_efficient_information(1.0, 0.0, 1.5, 0.5, 1.5, times, 200)
+    assert known == pytest.approx(0.0)
+    assert profiled == pytest.approx(0.0)
+    assert info_mean == pytest.approx(0.0)
+
+    q = 1.0 / 3.0
+    kl_var = variance_kl(1.5, 1.7, q, q, times, 200)
+    info_var = variance_efficient_information(1.5, q, q, times, 200)
+    assert kl_var == pytest.approx(0.0)
+    assert info_var == pytest.approx(0.0)
+
+
+def test_profiled_kl_is_no_larger_than_known_nuisance_kl():
+    times = np.array([0.0, 0.5, 1.0])
+    known = mean_kl_known_mu(1.0, 1.2, 0.5, 1.5, 0.5, 1.5, times, 400)
+    profiled, alternative_mu = mean_kl_profile_mu(
+        1.0, 1.2, 0.5, 1.5, 0.5, 1.5, times, 400
+    )
+    assert 0.0 < profiled <= known
+    assert alternative_mu != pytest.approx(0.5)
 
 
 def test_predicted_drift_mean_reversion():
@@ -56,6 +138,19 @@ def test_deterministic_alignment_near_one():
     assert r.cos > 0.95
     assert r.residual_frac < 0.1
     assert abs(r.cos2 + r.residual_frac - 1.0) < 1e-10
+
+
+def test_alignment_is_invariant_under_uniform_parameter_scaling():
+    rng = np.random.default_rng(7)
+    x = np.concatenate([rng.normal(-1.5, 0.3, 250), rng.normal(2.0, 0.4, 250)])
+    y = np.sort(x) + 0.03 * np.sin(np.linspace(0.0, np.pi, x.size))
+    bandwidth = silverman_bandwidth(x)
+    base = Model(a=1.0, b=0.5, beta=0.5)
+    cosines = []
+    for c in (0.5, 1.0, 2.0):
+        scaled = Model(a=c * base.a, b=c * base.b, beta=c * base.beta)
+        cosines.append(alignment(x, y, scaled, bandwidth=bandwidth).cos)
+    assert np.max(np.abs(np.asarray(cosines) - cosines[1])) < 1e-12
 
 
 def test_mean_zero_translation_nearly_orthogonal():
