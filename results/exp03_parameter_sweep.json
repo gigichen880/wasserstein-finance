@@ -225,6 +225,6 @@
       "beta": 1.0
     }
   ],
-  "runtime_sec": 29.714980840682983,
+  "runtime_sec": 38.15356397628784,
   "command": "python experiments/03_parameter_sweep.py"
 }

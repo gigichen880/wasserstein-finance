@@ -49,15 +49,18 @@ def _align_seq(snaps, model, bw):
 
 def run(seed: int = 0, n: int = 800, n_steps: int = 12, dt: float = 0.05) -> dict:
     model = Model()
-    wrong = Model(a=2.0, b=2.0, beta=0.2)
+    nonuniform = Model(a=2.0, b=2.0, beta=0.2)
     rng = np.random.default_rng(seed)
     X0 = bimodal_samples(n, rng, left=-1.5, right=2.2)
     bw = silverman_bandwidth(X0)
+    true_snaps = simulate_snapshots(
+        X0, n_steps, dt, rng, lambda X: step_mckean_vlasov(X, model, dt, rng)
+    )
     gens = {
-        "true_mv": lambda rng=rng: simulate_snapshots(
-            X0, n_steps, dt, rng, lambda X: step_mckean_vlasov(X, model, dt, rng)),
-        "eval_wrong_params": lambda rng=rng: simulate_snapshots(
-            X0, n_steps, dt, rng, lambda X: step_mckean_vlasov(X, model, dt, rng)),
+        "true_mv": lambda: true_snaps,
+        # Deliberately nonuniform misspecification, evaluated on the exact same
+        # snapshots as true_mv. This is not the scale orbit c(a,b,beta).
+        "eval_nonuniform_params": lambda: true_snaps,
         "tanh_drift": lambda rng=rng: simulate_snapshots(
             X0, n_steps, dt, rng, lambda X: step_tanh(X, model.a, model.beta, dt, rng)),
         "state_dep_diffusion": lambda rng=rng: simulate_snapshots(
@@ -72,7 +75,7 @@ def run(seed: int = 0, n: int = 800, n_steps: int = 12, dt: float = 0.05) -> dic
             X0, n_steps, dt, rng, lambda X: step_quartic(X, model, dt, rng, gamma=0.3)),
     }
     eval_model = {k: model for k in gens}
-    eval_model["eval_wrong_params"] = wrong
+    eval_model["eval_nonuniform_params"] = nonuniform
 
     rows = []
     for name, gen in gens.items():
@@ -84,10 +87,21 @@ def run(seed: int = 0, n: int = 800, n_steps: int = 12, dt: float = 0.05) -> dic
         row = dict(dgp=name, eval_a=mdl.a, eval_b=mdl.b, eval_beta=mdl.beta, **al, **mom)
         rows.append(row)
 
+    # Proposition 10 is a fixed-density statement. Reuse the same snapshots,
+    # score estimator, displacement, weights, and bandwidth at every scale.
+    scales = (0.5, 1.0, 2.0)
+    scale_rows = []
+    for c in scales:
+        scaled = Model(a=c * model.a, b=c * model.b, beta=c * model.beta)
+        al = _align_seq(true_snaps, scaled, bw)
+        scale_rows.append(dict(scale=c, **al))
+    reference_cos = next(r["mean_cos"] for r in scale_rows if r["scale"] == 1.0)
+    max_scale_cos_diff = float(max(abs(r["mean_cos"] - reference_cos) for r in scale_rows))
+
     true = next(r for r in rows if r["dgp"] == "true_mv")
     obvious = [r for r in rows if r["dgp"] in ("anti_gradient", "translation", "tanh_drift")]
     worse_align = all(r["mean_cos"] < true["mean_cos"] - 0.05 for r in obvious)
-    wrong_scale = next(r for r in rows if r["dgp"] == "eval_wrong_params")
+    wrong_eval = next(r for r in rows if r["dgp"] == "eval_nonuniform_params")
     quartic = next(r for r in rows if r["dgp"] == "quartic_potential")
     metrics = dict(
         claim="model_validation_synthetic",
@@ -96,18 +110,22 @@ def run(seed: int = 0, n: int = 800, n_steps: int = 12, dt: float = 0.05) -> dic
         true_mean_cos=true["mean_cos"],
         true_mean_residual=true["mean_residual"],
         true_var_mae=true["var_mae"],
-        wrong_scale_cos=wrong_scale["mean_cos"],
-        wrong_scale_var_mae=wrong_scale["var_mae"],
+        nonuniform_eval_cos=wrong_eval["mean_cos"],
+        nonuniform_eval_var_mae=wrong_eval["var_mae"],
+        fixed_snapshot_scale_rows=scale_rows,
+        scale_invariance_max_abs_cos_diff=max_scale_cos_diff,
         quartic_cos=quartic["mean_cos"],
         quartic_var_mae=quartic["var_mae"],
         obvious_wrong_lower_cosine=worse_align,
-        scale_misspec_caught_by_variance=wrong_scale["var_mae"] > max(2.0 * true["var_mae"], 0.05),
+        nonuniform_misspec_caught_by_variance=wrong_eval["var_mae"] > max(2.0 * true["var_mae"], 0.05),
+        exact_scale_invariance=max_scale_cos_diff < 1e-12,
         supports_claim=true["mean_cos"] > 0.5 and worse_align,
         notes=(
             "Positive DGP is the quadratic McKean-Vlasov. Remaining rows are "
             "misspecified dynamics or misspecified evaluation parameters. "
             "quartic_potential is a nearby nonquadratic V=(a/2)x^2+(γ/4)x^4. "
-            "Cosine is scale-blind; variance MAE is the scale-sensitive check."
+            "eval_nonuniform_params is not a scalar rescaling. The separate "
+            "fixed_snapshot_scale_rows reuse one trajectory and verify exact scale invariance."
         ),
     )
     return dict(rows=rows, metrics=metrics)
@@ -115,7 +133,7 @@ def run(seed: int = 0, n: int = 800, n_steps: int = 12, dt: float = 0.05) -> dic
 
 DGP_LABELS = {
     "true_mv": "true quadratic",
-    "eval_wrong_params": "wrong parameter scale",
+    "eval_nonuniform_params": "nonuniform parameter error",
     "tanh_drift": "nonlinear tanh drift",
     "state_dep_diffusion": "state-dependent diffusion",
     "omitted_force": "omitted force",
@@ -179,8 +197,14 @@ def main():
     meta["command"] = "python experiments/05_synthetic_falsification.py"
     save_json(RESULTS_DIR / "exp05_synthetic_falsification.json", meta)
     save_csv(RESULTS_DIR / "exp05_synthetic_falsification.csv", data["rows"])
-    print("exp05 true cos", meta["true_mean_cos"], "wrong-scale var MAE",
-          meta["wrong_scale_var_mae"], "quartic var MAE", meta["quartic_var_mae"])
+    paper_figs = Path(__file__).resolve().parents[1] / "paper" / "figs"
+    paper_figs.mkdir(exist_ok=True)
+    (paper_figs / "exp05_synthetic_falsification.png").write_bytes(
+        (FIGS_DIR / "exp05_synthetic_falsification.png").read_bytes()
+    )
+    print("exp05 true cos", meta["true_mean_cos"], "nonuniform-eval var MAE",
+          meta["nonuniform_eval_var_mae"], "scale max |delta cos|",
+          meta["scale_invariance_max_abs_cos_diff"], "quartic var MAE", meta["quartic_var_mae"])
 
 
 if __name__ == "__main__":

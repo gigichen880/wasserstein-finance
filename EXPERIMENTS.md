@@ -125,14 +125,14 @@ Paper §4.1–4.2 numbers that we *do* reproduce: terminal variance \(0.345\) vs
 
 **Claim tested:** model validation (synthetic).
 
-**Hypothesis:** The diagnostic should look good on the true McKean–Vlasov DGP and worse on misspecified dynamics / parameters. Cosine alone cannot identify overall scale \((a,b,\beta)\mapsto c(a,b,\beta)\); moments should.
+**Hypothesis:** The diagnostic should look good on the true McKean–Vlasov DGP and worse on misspecified dynamics / parameters. On a fixed pair of marginals, cosine is exactly invariant under \((a,b,\beta)\mapsto c(a,b,\beta)\).
 
 **Setup:** \(N=800\) particles, 12 windows, \(\Delta t=0.05\), evaluation uses the *proposed* quadratic \(v_{\mathrm{pred}}\) unless noted.
 
 | DGP | mean \(\cos\theta\) | residual | mean MAE | var MAE |
 |---|---|---|---|---|
 | true MV | \(+0.876\) | \(0.230\) | \(0.004\) | \(0.019\) |
-| true MV, eval at wrong \((a,b,\beta)\) | \(+0.808\) | \(0.344\) | \(0.010\) | \(0.379\) |
+| true MV, nonuniform evaluation error \((2,2,0.2)\) | \(+0.808\) | \(0.344\) | \(0.010\) | \(0.379\) |
 | \(\tanh\) drift | \(+0.507\) | \(0.730\) | \(0.012\) | \(0.265\) |
 | state-dependent diffusion | \(+0.687\) | \(0.514\) | \(0.009\) | \(0.046\) |
 | omitted constant force | \(+0.777\) | \(0.385\) | \(0.040\) | \(0.018\) |
@@ -140,7 +140,7 @@ Paper §4.1–4.2 numbers that we *do* reproduce: terminal variance \(0.345\) vs
 | rigid translation | \(-0.489\) | \(0.722\) | \(0.334\) | \(0.437\) |
 | quartic \(V=\frac{a}{2}x^2+\frac{\gamma}{4}x^4\) | \(+0.913\) | \(0.164\) | \(0.014\) | \(0.090\) |
 
-**Verdict: supports as a discriminator, with two qualifications.** Wrong *scale* of parameters barely moves cosine (\(0.88\to 0.81\)) but wrecks the variance law. A nearby quartic potential has *higher* cosine than the true DGP (\(0.91\)) while variance MAE rises \(0.019\to 0.090\): alignment can look better on a plausible misspecification. Figure panels now show variance MAE, not only residual.
+**Verdict: supports as a discriminator, with two qualifications.** The \(0.88\to0.81\) comparison is a nonuniform misspecification, not a scale test. A dedicated check reuses exactly the same snapshots, score, displacement, weights, and bandwidth at \(c\in\{0.5,1,2\}\), and the cosine agrees to numerical precision. A nearby quartic potential has *higher* cosine than the true DGP (\(0.91\)) while variance MAE rises \(0.019\to0.090\): alignment can look better on a plausible misspecification.
 
 **Command:** `python experiments/05_synthetic_falsification.py`
 
@@ -220,11 +220,251 @@ At large \(\Delta t\), later windows even change sign. Bandwidth scale \(0.5/1/2
 
 ---
 
+## Experiment 12 — exact ambiguity and shifted intervention
+
+**Claim tested:** centered populations cannot distinguish confinement from
+interaction along \((a,b,\beta)\mapsto(a+h,b-h,\beta)\), but a physically
+shifted population can distinguish that particular gauge.
+
+**Setup:** Exact independent Gaussian snapshots at
+\(t\in\{0.25,0.5,1\}\), \(N=400\) per snapshot, \(500\) replications, and
+\(h\in\{-0.75,-0.5,-0.25,0,0.2,0.4\}\). Training populations are centered.
+The holdout population has initial mean \(0.8\).
+
+**Result:** Population means and variances on centered training data agree
+across the ridge to machine precision. The independently sampled centered
+negative log likelihood is exactly flat because every candidate density is the
+same. On the shifted holdout, Monte Carlo excess loss matches the population
+Gaussian KL, and final-time pairwise \(W_2\) disagreement reaches \(0.329\).
+
+**Verdict: supports.** Perfect agreement on the observed centered population
+does not imply agreement after a physical intervention. This removes the
+displayed gauge; it does not prove complete nonlinear identifiability.
+
+**Command:** `python experiments/12_ambiguity_intervention.py`
+
+---
+
+## Experiment 13 — separate weak-identification mechanisms
+
+**Claim tested:** small initial mean weakens confinement--interaction
+separation, while near-equilibrium variance separately weakens recovery of
+dispersion dynamics.
+
+**Setup:** Independent Gaussian snapshots at \(t\in\{0,0.5,1\}\), \(1000\)
+replications, and \(N\in\{100,400,1600\}\). Mean alternatives vary \(a\) at
+fixed \(k=a+b,\beta\). Variance alternatives vary \(k\) at fixed
+\(q=\beta/k\). Exact two-point KL is kept separate from information projected
+over nuisance parameters.
+
+**Result:** Curves from all three sample sizes collapse when plotted against
+nuisance-adjusted information. At the weakest signals, the direct plug-in is
+invalid on up to \(89.6\%\) of mean fits and \(93.3\%\) of variance fits.
+Every-dataset constrained/clipped losses remain large in those regimes.
+The ratio of mean information to \(N\mu_0^2\) is constant for this design;
+the ratio of variance information to \(N(\Sigma_0-q)^2\) varies from
+\(0.0140\) to \(0.0528\), confirming that the latter is only a candidate
+scaling variable.
+
+**Verdict: supports.** Formal identifiability can be statistically useless
+without mean or variance excitation. Conditional RMSE is reported together
+with failure rates; unconditional bounded loss is defined on every replicate.
+
+**Command:** `python experiments/13_weak_identification.py`
+
+---
+
+## Experiment 14 — equal-budget shifted training recovery
+
+**Claim tested:** under identical times, initial variance, dynamics, and total
+samples per time, shifted training populations restore recovery of \(a\) on an
+independent shifted test population, while a centered likelihood remains a
+ridge. Mixed training is not presumed to beat shifted-only: it has two thirds
+of the mean-block information.
+
+**Setup:** Independent Gaussian snapshots at \(t\in\{0.25,0.5,1\}\). Designs
+centered (mean \(0\)), shifted-only (mean \(0.8\)), and mixed (means
+\(-0.8,0,0.8\)). Initial means are known; common \(\Sigma_0\) is unknown.
+Test population mean \(1.2\). Constraints \(a>0\), \(k\ge a\), \(q>0\).
+Centered fits are reported as sets and forecast envelopes. Exact Gaussian
+\(W_2\) is separate from sampled test NLL.
+
+**Result:** Mixed/shifted information ratio is exactly \(2/3\). At \(4800\)
+samples per time the centered forecast envelope of mean \(W_2\) remains
+\((0.008,0.560)\). Shifted-only recovers \(a\) with RMSE \(0.023\) and mean
+\(W_2\) \(0.011\); mixed has RMSE \(0.029\) and mean \(W_2\) \(0.013\).
+
+**Verdict: supports, with the information-allocation caveat.** Shifted training
+removes this gauge for \(a\). Mixing three means under an equal budget is a
+weaker excitation of \(a\) than putting the whole budget on one shifted
+population.
+
+**Command:** `python experiments/14_shifted_training_recovery.py`
+
+---
+
+## Experiment 15 — variance-interval calibration
+
+**Claim tested:** clipped-ratio/oracle-Wald, constrained variance MLE,
+profile-likelihood sets, and a parametric bootstrap are not automatically
+calibrated under weak variance excitation.
+
+**Setup:** Reuses the weak-variance design of Experiment 13, with
+\(N\in\{100,400,1600\}\) and scaled signals \(\{0.5,2,8,16\}\). Profile sets
+are stored as components, including full-domain sets. Compact numerical bounds
+are recorded separately from genuine scientific constraints.
+
+**Result:** Weak-signal profile sets cover because they are often the whole
+domain. At the strongest displayed cell, profile coverage is \(0.933\) with
+mean hull width \(1.27\) on a domain of width \(1.99\). Bootstrap coverage
+ranges from \(0.05\) to \(0.775\). Clipped Wald coverage ranges from \(0.906\)
+to \(1\). The constrained MLE hits an artificial bound on \(87.8\%\) of the
+weakest large-\(N\) replicates.
+
+**Verdict: supports the diagnosis, not a calibration claim.** Failures split
+into vanishing information, compact-bound effects, and estimator-specific
+clipping or resampling.
+
+**Command:** `python experiments/15_variance_interval_calibration.py`
+
+---
+
+## Experiment 16 — official JKOnet* attempt
+
+**Claim tested:** none until the official `jkonet-star-linear` pipeline
+completes on independent snapshots of the quadratic model without changing its
+objective or pairing assumptions.
+
+**Setup:** Pin `antonioterpin/jkonet-star` at
+`1741c53ae00da932e0841ce02eca2d842c04b813`. Write independent snapshots in the
+official `data.npy` format. Use `--split-population` and
+`--solver jkonet-star-linear`. Equal spacing \(\{0,0.5,1\}\) is used because
+the official evaluator hard-codes `dt=1`. A quadratic polynomial dictionary is
+a labeled feature restriction, not a forked loss.
+
+**Result:** Official `jkonet-star-linear` completed at pinned revision
+`1741c53ae00da932e0841ce02eca2d842c04b813`. On equally spaced independent
+snapshots with 300 samples per time, official one-step \(W_1\) is \(0.078\)
+(centered) and \(0.073\) (shifted-only). Mixed means concatenated into one
+cloud become a mean-zero mixture, which is not Experiment 14's
+three-population design. Official `test_data` is a split of the same
+populations, not an independent shifted intervention. Recorded in
+`results/exp16_jkonet_star_comparison.json`.
+
+**Verdict: official solver ran; not a substitute for Experiments 14--15.**
+
+**Command:** `python experiments/16_jkonet_star_comparison.py`
+
+---
+
+## Experiment 18 — information geometry / optimal snapshot design
+
+**Claim tested:** identifiability (synthetic, Gaussian snapshots). Which
+initial states and observation times carry information for \((a,b,\beta)\).
+
+**Hypothesis:** Centered populations have \(\lambda_{\min}(I_{a,b,\beta})=0\).
+Two-snapshot information for \(a\) has an interior maximum: spacings that are
+too small or too late are both weak. Frozen-variance optimal spacing is
+\(\Delta^\star=x^\star/a\) with \(x^\star\) the root of \(x=1+e^{-2x}\). Equal
+total budget does not make every allocation equivalent.
+
+**Setup:** Default model \(a=1\), \(b=0.5\), \(\beta=0.5\). Independent
+Gaussian snapshots. Analytic 5-parameter Fisher in
+`wfmm.identifiability`, plus 500 Monte Carlo two-snapshot plug-ins at
+\(N=400\) per time.
+
+**Result:** Frozen \(\Delta^\star=1.109\). With moving variance,
+\(\Delta^\star\approx 1.41\) maximizes \(I_a^{\mathrm{eff}}\) (peak \(69.0\);
+at \(\Delta=0.12\) it is \(1.25\)). Centered \(\lambda_{\min}=2.5\times 10^{-14}\);
+shifted \(\mu_0=0.8\) gives \(6.99\). Monte Carlo \(N\mathrm{Var}(\hat a)\)
+matches \(v_a(\Delta)\) at moderate \(\Delta\) (at \(0.5\): \(19.42\) vs
+\(19.46\)). At equal budget \(N_{\mathrm{tot}}=1200\), equal three-time
+allocation has \(\lambda_{\min}=6.99\); a two-time design raises
+\(I_a^{\mathrm{eff}}\) to \(87.3\) but drops \(\lambda_{\min}\) to \(0.031\)
+because \(I_k^{\mathrm{eff}}\approx 0\). Observing after relaxation
+(\(t_0\uparrow\)) collapses both \(I_a^{\mathrm{eff}}\) and \(\lambda_{\min}\).
+
+**Verdict: supports.** Snapshot *design* is first-order. Maximizing information
+for \(a\) alone can destroy identification of \((k,q)\).
+
+**Command:** `python experiments/18_information_design.py`
+
+---
+
+## Experiment 19 — identifiability phase diagram
+
+**Claim tested:** identifiability (synthetic). Joint grid of mean and variance
+excitation at fixed sample budget.
+
+**Hypothesis:** The \((\lvert\mu_0\rvert,\lvert\Sigma_0-q\rvert)\) plane
+separates a structural null (either coordinate zero), a weak/ill-conditioned
+interior, and a well-identified corner.
+
+**Setup:** Times \(\{0,0.5,1\}\), \(N=400\) per time (\(N_{\mathrm{tot}}=1200\)
+fixed), \(250\) replications. Analytic profiled Fisher for \((a,b,\beta)\) and
+three-snapshot plug-in recovery.
+
+**Result:** \(\lambda_{\min}=0\) on both axes \(\mu_0=0\) and \(\Sigma_0=q\).
+At \((\mu_0,\varepsilon)=(1.2,2.0)\), \(\lambda_{\min}=10.8\) and
+\(P(\|\hat\theta-\theta\|<0.5)=0.82\). At \((0.05,0.05)\),
+\(\lambda_{\min}=0.041\) and recovery probability \(0.01\). Plugin validity
+on the axes is spurious noise, not identification.
+
+**Verdict: supports.** Three regimes are visible at equal budget.
+
+**Command:** `python experiments/19_identifiability_phase.py`
+
+---
+
+## Experiment 20 — approach to the non-identifiable boundary
+
+**Claim tested:** identifiability (synthetic). Scaling of information as
+excitation \(\to 0\).
+
+**Hypothesis:** \(I_a^{\mathrm{eff}}\propto\mu_0^2\) exactly;
+\(I_k^{\mathrm{eff}}\propto\varepsilon^2 C(\varepsilon)\) locally, so
+\(\lambda_{\min}\sim C\varepsilon^p\) with \(p=2\) for both mechanisms.
+RMSE of \(\hat a\) should blow up as \(\mu_0\to 0\) but remain finite as
+\(\varepsilon\to 0\), because \(a\) is a mean parameter.
+
+**Setup:** Same three-time design, \(N=400\), \(400\) replications.
+Log-log OLS on signals \(\le 0.25\).
+
+**Result:** Fitted exponents \(\hat p_{\lambda}(\mu_0)=1.96\),
+\(\hat p_{\lambda}(\varepsilon)=1.92\), \(\hat p(I_a)=2.000\),
+\(\hat p(I_k)=1.93\). RMSE of \(\hat a\) is large at small \(\mu_0\)
+(\(\approx 0.54\) at \(\mu_0=0.01\)) and stays \(\approx 0.12\) at
+\(\varepsilon=0.01\).
+
+**Verdict: supports.** Structural non-identifiability is the \(\varepsilon=0\)
+endpoint of a \(\varepsilon^2\) information collapse, not a separate
+numerical pathology. The two mechanisms are not interchangeable:
+vanishing mean excitation costs \(a\); vanishing variance excitation costs
+\((k,b,\beta)\).
+
+**Command:** `python experiments/20_boundary_scaling.py`
+
+Memo: `research/identifiability/memo.md`. Experiments 21–23 were not run.
+
+---
+
 ## What is and is not supported
 
 1. **Theory / implementation:** Supported (01–03, shock sweep). Closed-form laws, exact piecewise-constant shock mean, two-energy distinction, comparative statics.
 2. **JKO as a numerical method:** Supported for stability, positivity, signed-mass (exact), monotone \(F\), no CFL. On the Gaussian refinement test (09), JKO \(W_2\) has log–log slope \(p=0.95\)–\(0.96\) in \(\tau\) and is smaller per runtime than Eulerian FP. On the exact bimodal-mixture subset the advantage shrinks but remains. **Not** supported as a resolution-matched accuracy theorem for general data. Explicit FP *does* conserve signed mass while stable.
 3. **Model validation on observed markets:** **Not tested.** 05–08 and 10 use synthetic McKean–Vlasov (or deliberate wrong) particles. Diagnostics can distinguish wrong dynamics, especially via moments; cosine can look *better* on a nearby quartic. They do not say that dealer inventories in the wild follow \(F\).
+4. **Experimental identifiability checkpoint:** Supported in the exact scalar
+   model (12--15 and 18--20). Centered ambiguity, weak-signal lower bounds, shifted
+   intervention disagreement, and equal-budget recovery after shifted training
+   pass. Snapshot *design* has an interior optimal spacing for \(a\); information
+   collapses as \(\mu_0^2\) and locally as \((\Sigma_0-q)^2\); a phase diagram at
+   fixed budget separates structural null, weak, and well-identified cells.
+   Interval methods are diagnosed, not declared calibrated. General
+   nonlinear recovery, matrix recovery, and an official JKOnet* comparison are
+   not claimed unless Experiment 16 completes faithfully. Experiments 18--20 now
+   support the excitation-geometry proposition and joint-design corollary in
+   `paper/rewrite.tex`: exact \(\mu_0^2\) and local \(\varepsilon^2\) Fisher
+   expansions, a phase diagram, and joint snapshot design.
 
 Population inventories remain unobserved; that limitation in the paper is unchanged.
 
@@ -232,8 +472,9 @@ Population inventories remain unobserved; that limitation in the paper is unchan
 
 ## Manuscript revision
 
-Drop-in Overleaf text is the single file [`paper/rewrite.tex`](paper/rewrite.tex)
-(full article: abstract through appendix). Compile with `cd paper && latexmk -pdf rewrite.tex`.
+The baseline Overleaf manuscript is [`paper/rewrite.tex`](paper/rewrite.tex)
+with [`paper/references.bib`](paper/references.bib). Compile with
+`cd paper && latexmk -pdf rewrite.tex`.
 
 The four manuscript changes requested after the experiment audit:
 
@@ -241,4 +482,16 @@ The four manuscript changes requested after the experiment audit:
 2. \(b\) is interaction strength / cross-sectional dispersion penalty, not a penalty on similar inventories.
 3. JKO keeps mass, positivity, and energy dissipation without CFL. Signed mass of explicit FP is conserved while stable. On a Gaussian refinement test, JKO error has log–log slope \(p=0.95\)–\(0.96\) in \(\tau\); an exact bimodal-mixture subset is also reported. Neither is a general equal-resolution theorem.
 4. The empirical program is moment restrictions + distribution forecasting + local directional alignment, in that order, plus repeated-seed recovery and a nearby quartic falsification.
+
+---
+
+## Empirical liquidity-state checkpoint (not a paper result)
+
+`python experiments/17_empirical_checkpoint.py` builds a small overlapping
+one-minute book panel from `data_by_stocks/` and tests whether the quadratic
+flow is a useful **effective** description of cross-sectional **depth imbalance**.
+That coordinate is a liquidity state, not dealer inventory. Raw archives stay
+out of git. The checkpoint writes `research/empirical/report.md` and
+`results/empirical/decision.json`. Do **not** treat it as financial validation
+of `paper/rewrite.tex` unless that decision file records a pass.
 

@@ -19,6 +19,15 @@ SCRIPTS = [
     "08_directional_alignment.py",
     "09_convergence.py",
     "10_parameter_recovery.py",
+    "11_snapshot_estimation.py",
+    "12_ambiguity_intervention.py",
+    "13_weak_identification.py",
+    "14_shifted_training_recovery.py",
+    "15_variance_interval_calibration.py",
+    "16_jkonet_star_comparison.py",
+    "18_information_design.py",
+    "19_identifiability_phase.py",
+    "20_boundary_scaling.py",
 ]
 
 

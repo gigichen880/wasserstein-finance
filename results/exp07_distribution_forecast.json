@@ -81,6 +81,6 @@
   "notes": "Parameters from training windows only. Persistence is the no-skill baseline. JKO uses fitted (a,b) with tau=dt and M=80.",
   "supports_claim": true,
   "gaussian_beats_persistence": true,
-  "runtime_sec": 0.5867702960968018,
+  "runtime_sec": 0.9237902164459229,
   "command": "python experiments/07_distribution_forecast.py"
 }

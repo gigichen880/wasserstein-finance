@@ -24,6 +24,6 @@
   "sweep_mae": 0.008716554136351053,
   "supports_claim": true,
   "notes": "Piecewise-constant tilt: mean law is exact, not quasi-static. Baseline F_0 can rise during the shock; instantaneous F_c should dissipate after the switch. Lyapunov decrease is not claimed across the jump in c.",
-  "runtime_sec": 46.60156607627869,
+  "runtime_sec": 53.968425035476685,
   "command": "python experiments/02_shock.py"
 }

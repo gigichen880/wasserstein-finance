@@ -55,6 +55,6 @@
   "scale_not_identified_by_cosine": true,
   "supports_claim": true,
   "notes": "Parameters fitted only on the training segment. Cosine alignment is not used here; (a,b,beta) ~ c(a,b,beta) is identified via moment timescales.",
-  "runtime_sec": 0.44371914863586426,
+  "runtime_sec": 0.704056978225708,
   "command": "python experiments/06_moment_validation.py"
 }

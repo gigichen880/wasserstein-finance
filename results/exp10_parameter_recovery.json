@@ -661,6 +661,6 @@
   "default_w2_persist": 0.050114015648166754,
   "default_w2_gauss": 0.03429776677658903,
   "notes": "Synthetic MV particles only. a from mean decay, a+b from variance relaxation, \u03b2 from \u03c3_\u221e\u00b2(a+b). Parameters fit on the training window.",
-  "runtime_sec": 1.914113998413086,
+  "runtime_sec": 3.0355281829833984,
   "command": "python experiments/10_parameter_recovery.py"
 }

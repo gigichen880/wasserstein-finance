@@ -36,6 +36,6 @@
   ],
   "supports_claim": true,
   "notes": "Paper bimodal is mean-zero so the mean law is nearly vacuous there; shifted bimodal companion tests mu_t = mu0 e^{-a t}.",
-  "runtime_sec": 7.313050031661987,
+  "runtime_sec": 9.631659984588623,
   "command": "python experiments/01_relaxation.py"
 }

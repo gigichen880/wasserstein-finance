@@ -240,6 +240,6 @@
   "cosine_highest_at_small_dt": true,
   "supports_claim": true,
   "notes": "Directional agreement is a local (small Delta t) statement. Residual is unexplained Wasserstein displacement, not circulation. lambda_hat absorbs the unknown timescale; cosine is scale-free.",
-  "runtime_sec": 1.6907849311828613,
+  "runtime_sec": 3.961041212081909,
   "command": "python experiments/08_directional_alignment.py"
 }
