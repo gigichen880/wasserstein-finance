@@ -1,0 +1,229 @@
+{
+  "claim": "boundary_scaling",
+  "seed": 20,
+  "model": {
+    "a": 1.0,
+    "b": 0.5,
+    "beta": 0.5,
+    "sigma2_inf": 0.3333333333333333
+  },
+  "times": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "n_per_time": 400,
+  "replications": 400,
+  "predicted_exponent": 2.0,
+  "lambda_min_mean_exponent": 1.9594984651559801,
+  "lambda_min_variance_exponent": 1.9183480229593954,
+  "I_a_exponent": 2.0,
+  "I_k_exponent": 1.9311945679942213,
+  "mean_prefactor": 40.723867219936714,
+  "variance_prefactor": 13.588008443652457,
+  "mean_rows": [
+    {
+      "signal": 0.01,
+      "mechanism": "mean",
+      "lambda_min": 0.0047455310660980896,
+      "I_eff": 0.00949324526439715,
+      "cond": 203402.384050972,
+      "rmse_a": 0.5385067693993639,
+      "plugin_valid_rate": 0.34,
+      "var_a_hat": 0.2302573346753822
+    },
+    {
+      "signal": 0.02,
+      "mechanism": "mean",
+      "lambda_min": 0.018969017705158003,
+      "I_eff": 0.0379729810575886,
+      "cond": 50886.03343913782,
+      "rmse_a": 0.5442488507703808,
+      "plugin_valid_rate": 0.3125,
+      "var_a_hat": 0.2685321655394859
+    },
+    {
+      "signal": 0.04,
+      "mechanism": "mean",
+      "lambda_min": 0.07566590317283532,
+      "I_eff": 0.1518919242303544,
+      "cond": 12757.146598039984,
+      "rmse_a": 0.5176497432506298,
+      "plugin_valid_rate": 0.3875,
+      "var_a_hat": 0.24140497643637226
+    },
+    {
+      "signal": 0.06,
+      "mechanism": "mean",
+      "lambda_min": 0.169456509737773,
+      "I_eff": 0.3417568295182974,
+      "cond": 5696.560612507989,
+      "rmse_a": 0.5278471081732959,
+      "plugin_valid_rate": 0.4775,
+      "var_a_hat": 0.24843483559618573
+    },
+    {
+      "signal": 0.1,
+      "mechanism": "mean",
+      "lambda_min": 0.4635934295518889,
+      "I_eff": 0.9493245264397152,
+      "cond": 2082.518278880794,
+      "rmse_a": 0.6180061774233737,
+      "plugin_valid_rate": 0.67,
+      "var_a_hat": 0.35352460790595586
+    },
+    {
+      "signal": 0.15,
+      "mechanism": "mean",
+      "lambda_min": 1.011090916235845,
+      "I_eff": 2.135980184489359,
+      "cond": 955.0886218639303,
+      "rmse_a": 0.5071499037890329,
+      "plugin_valid_rate": 0.8,
+      "var_a_hat": 0.22504682650765287
+    },
+    {
+      "signal": 0.25,
+      "mechanism": "mean",
+      "lambda_min": 2.5144752428182304,
+      "I_eff": 5.933278290248219,
+      "cond": 384.35513079551976,
+      "rmse_a": 0.4513095401421596,
+      "plugin_valid_rate": 0.91,
+      "var_a_hat": 0.18116914985692578
+    },
+    {
+      "signal": 0.4,
+      "mechanism": "mean",
+      "lambda_min": 4.76333949701586,
+      "I_eff": 15.189192423035443,
+      "cond": 203.29202624286893,
+      "rmse_a": 0.3785052287320933,
+      "plugin_valid_rate": 0.98,
+      "var_a_hat": 0.13527793075289946
+    },
+    {
+      "signal": 0.6,
+      "mechanism": "mean",
+      "lambda_min": 6.35963009779594,
+      "I_eff": 34.17568295182974,
+      "cond": 152.89161603117293,
+      "rmse_a": 0.29462124525170236,
+      "plugin_valid_rate": 1.0,
+      "var_a_hat": 0.08525594993932314
+    },
+    {
+      "signal": 0.9,
+      "mechanism": "mean",
+      "lambda_min": 7.160424405070812,
+      "I_eff": 76.89528664161692,
+      "cond": 137.11169298094097,
+      "rmse_a": 0.1820950060554355,
+      "plugin_valid_rate": 1.0,
+      "var_a_hat": 0.032733809117203846
+    }
+  ],
+  "variance_rows": [
+    {
+      "signal": 0.01,
+      "mechanism": "variance",
+      "lambda_min": 0.001889611705861457,
+      "I_eff": 0.0021029200436559364,
+      "cond": 757740.6590234138,
+      "rmse_a": 0.12376390977842713,
+      "plugin_valid_rate": 0.1925,
+      "var_a_hat": 0.015362929201204608
+    },
+    {
+      "signal": 0.02,
+      "mechanism": "variance",
+      "lambda_min": 0.007469674616932609,
+      "I_eff": 0.008326389830565547,
+      "cond": 190639.03922501675,
+      "rmse_a": 0.11965638360611343,
+      "plugin_valid_rate": 0.22,
+      "var_a_hat": 0.013831387758722507
+    },
+    {
+      "signal": 0.04,
+      "mechanism": "variance",
+      "lambda_min": 0.02917998318848498,
+      "I_eff": 0.03263515336156462,
+      "cond": 48277.15024360092,
+      "rmse_a": 0.16751691643355887,
+      "plugin_valid_rate": 0.23,
+      "var_a_hat": 0.02762091768736316
+    },
+    {
+      "signal": 0.06,
+      "mechanism": "variance",
+      "lambda_min": 0.06411709070455614,
+      "I_eff": 0.07195593333886406,
+      "cond": 21740.08593108253,
+      "rmse_a": 0.12548911747336805,
+      "plugin_valid_rate": 0.31,
+      "var_a_hat": 0.015974020224653347
+    },
+    {
+      "signal": 0.1,
+      "mechanism": "variance",
+      "lambda_min": 0.1698420435627751,
+      "I_eff": 0.19198019825176293,
+      "cond": 8040.5517039619335,
+      "rmse_a": 0.1488916450509881,
+      "plugin_valid_rate": 0.5,
+      "var_a_hat": 0.022171041188454414
+    },
+    {
+      "signal": 0.15,
+      "mechanism": "variance",
+      "lambda_min": 0.360084002214974,
+      "I_eff": 0.4109122030752922,
+      "cond": 3700.859418874795,
+      "rmse_a": 0.1370026257953941,
+      "plugin_valid_rate": 0.62,
+      "var_a_hat": 0.01879393304921516
+    },
+    {
+      "signal": 0.25,
+      "mechanism": "variance",
+      "lambda_min": 0.8881326198817387,
+      "I_eff": 1.0346375776238441,
+      "cond": 1434.017474975785,
+      "rmse_a": 0.16105517311046522,
+      "plugin_valid_rate": 0.8075,
+      "var_a_hat": 0.02569976056956349
+    },
+    {
+      "signal": 0.4,
+      "mechanism": "variance",
+      "lambda_min": 1.9048862237108457,
+      "I_eff": 2.2963544109322553,
+      "cond": 629.735023010525,
+      "rmse_a": 0.17616623508729845,
+      "plugin_valid_rate": 0.935,
+      "var_a_hat": 0.031129563232290366
+    },
+    {
+      "signal": 0.6,
+      "mechanism": "variance",
+      "lambda_min": 3.401999595213091,
+      "I_eff": 4.310890856946869,
+      "cond": 329.6531519191954,
+      "rmse_a": 0.18239884706497184,
+      "plugin_valid_rate": 0.9875,
+      "var_a_hat": 0.03249626985454769
+    },
+    {
+      "signal": 0.9,
+      "mechanism": "variance",
+      "lambda_min": 5.493589056851161,
+      "I_eff": 7.5402309060927095,
+      "cond": 188.36113841700475,
+      "rmse_a": 0.21209004129828318,
+      "plugin_valid_rate": 1.0,
+      "var_a_hat": 0.044238328950428896
+    }
+  ],
+  "notes": "Analytic I_a^eff is exactly proportional to mu0^2. I_k^eff is epsilon^2 C(epsilon); C is not universal. Fitted lambda_min exponents should be near 2 on a small-signal window."
+}
