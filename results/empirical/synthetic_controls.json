@@ -1,0 +1,27 @@
+{
+  "interacting": {
+    "name": "synth",
+    "a": 0.023214739313906444,
+    "k": 0.07555651438631111,
+    "q": 0.08002057830695881,
+    "center": 0.0,
+    "mean_sse": 0.00044197753524338474,
+    "var_sse": 3.5606977188533065e-05,
+    "admissible": true,
+    "notes": "ok"
+  },
+  "independent": {
+    "name": "synth",
+    "a": 0.2710159125141095,
+    "k": 0.005164386366133582,
+    "q": 0.14830949706481597,
+    "center": 0.0,
+    "mean_sse": 9.36627725982233e-05,
+    "var_sse": 6.765541712417154e-05,
+    "admissible": false,
+    "notes": "inadmissible_or_k_lt_a"
+  },
+  "interacting_ka_positive": true,
+  "independent_ka_positive": false,
+  "note": "A false positive on the independent+factor DGP means k-a is observationally ambiguous."
+}

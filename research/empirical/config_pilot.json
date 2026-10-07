@@ -1,0 +1,44 @@
+{
+  "seed": 17,
+  "data_dir": "data_by_stocks",
+  "comment": "All modeling choices are prespecified. Do not retune on test days.",
+  "universe": [
+    "AAPL", "MSFT", "AMZN", "GOOGL", "FB", "NVDA",
+    "JPM", "BAC", "XOM", "JNJ", "UNH", "PG",
+    "V", "MA", "HD", "DIS", "INTC", "CSCO",
+    "BA", "WMT", "CVX", "PFE", "NFLX", "ADBE",
+    "SPY", "XLF", "XLK", "XLE", "XLV", "XLI"
+  ],
+  "market_proxy": "SPY",
+  "depth_levels_required": 10,
+  "train_dates": [
+    "2019-09-03", "2019-09-04", "2019-09-05", "2019-09-06",
+    "2019-09-09", "2019-09-10", "2019-09-11", "2019-09-12", "2019-09-13"
+  ],
+  "val_dates": [
+    "2019-09-16", "2019-09-17", "2019-09-18", "2019-09-19", "2019-09-20"
+  ],
+  "test_dates": [
+    "2019-09-23", "2019-09-24", "2019-09-25", "2019-09-26", "2019-09-27"
+  ],
+  "stress_dates": [
+    "2020-03-09", "2020-03-12", "2020-03-16"
+  ],
+  "stress_rule": "external COVID crash dates, not selected from imbalance outcomes",
+  "session_start": "09:30:00",
+  "session_end": "16:00:00",
+  "drop_open_minutes": 10,
+  "drop_close_minutes": 10,
+  "price_scale": 1e-4,
+  "spacings_min": [1, 5, 15, 30],
+  "horizons_min": [1, 5, 15, 30],
+  "rolling_step_min": 15,
+  "morning_window": ["09:45:00", "11:00:00"],
+  "afternoon_window": ["13:00:00", "15:30:00"],
+  "fixed_origin": "10:00:00",
+  "fixed_target": "15:00:00",
+  "heterogeneous_prior_count": 50,
+  "mean_floor": 0.02,
+  "kde_nll": false,
+  "gaussian_working_nll": true
+}

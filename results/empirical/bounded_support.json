@@ -1,0 +1,5 @@
+{
+  "empirical_mass_outside_unit": 0.0,
+  "gaussian_working_measure_Pabs_gt_1": 0.06031732228116127,
+  "note": "Raw imbalance is in [-1,1]. The affine Gaussian is an approximate benchmark."
+}

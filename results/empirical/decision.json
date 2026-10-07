@@ -1,0 +1,8 @@
+{
+  "verdict": "NO-GO for manuscript inclusion",
+  "rationale": "Test W2 quadratic=0.211, persistence=0.2005, independent OU=0.2119. Gains are not reproducible across meaningful alternatives, or bounded-support / heterogeneity remain first-order. Document the failure; do not add a financial-validation sentence to rewrite.tex.",
+  "gain_vs_persistence_w2": -0.010490546179975635,
+  "gain_vs_independent_ou_w2": 0.0008191615794673479,
+  "gaussian_leakage": 0.06031732228116127,
+  "n_universe": 30
+}

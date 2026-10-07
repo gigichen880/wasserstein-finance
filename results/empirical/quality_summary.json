@@ -1,0 +1,10 @@
+{
+  "n_files": 86,
+  "n_full_session": 86,
+  "n_early_close_candidate": 0,
+  "n_padded_early_close": 0,
+  "mean_stale_fraction": 0.006231365533691114,
+  "n_any_crossed": 1,
+  "median_ask_min": 18.42,
+  "median_ask_max": 616.32
+}
